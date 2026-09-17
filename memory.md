@@ -14,7 +14,14 @@
 - Passwords are hashed with bcrypt and excluded from serialized responses.
 - Authentication tests use an isolated in-memory MongoDB instance.
 
+## Turn 3: Core Quest Engine
+- Child-only quest initialization supports Math or English and Easy, Medium, or Hard difficulty.
+- Quest progression enforces exactly five questions and rejects answers after completion.
+- Correct answers use normal progression; incorrect answers return the correction and branch into setback/recovery content.
+- OpenRouter responses are parsed as compact JSON with a maximum 30-word story and one image keyword.
+- Quest tests cover initialization, authorization, branching, progression, completion, and clean MongoDB teardown.
+
 ## Status
-- Turn 1 and Turn 2: complete and verified.
-- Verification: 5 Jest suites passed, 13 tests passed; frontend production build passed.
-- Next milestone: implement quest setup and progression behavior.
+- Turn 1, Turn 2, and Turn 3: complete and verified.
+- Verification: quest suite passed with 5 tests; full backend suite previously passed with 13 tests; frontend production build passed.
+- Next milestone: implement parent dashboard analytics and child management UI.

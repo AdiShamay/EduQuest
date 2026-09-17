@@ -2,10 +2,14 @@ const mongoose = require('mongoose');
 
 const questionSchema = new mongoose.Schema(
   {
-    narrativePrompt: { type: String, required: true, maxlength: 30 },
+    narrativePrompt: { type: String, required: true, maxlength: 300 },
     userAnswer: { type: String, required: true },
     correctAnswer: { type: String, required: true },
     passed: { type: Boolean, required: true },
+    isRecovery: { type: Boolean, default: false },
+    imageKeyword: { type: String, default: '' },
+    story: { type: String, default: '' },
+    explanation: { type: String, default: '' },
   },
   { _id: false }
 );
@@ -35,6 +39,9 @@ const questSchema = new mongoose.Schema(
         message: 'A quest must contain exactly five questions',
       },
     },
+    answeredQuestions: { type: Number, default: 0, min: 0, max: 5 },
+    currentQuestionIndex: { type: Number, default: 0, min: 0, max: 4 },
+    completed: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

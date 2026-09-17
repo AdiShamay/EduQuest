@@ -1,0 +1,118 @@
+const Quest = require('../models/Quest');
+const {
+  TOTAL_QUESTIONS,
+  generateChallenge,
+  hiddenQuestion,
+  publicQuestion,
+} = require('../services/questEngine');
+
+const SUBJECTS = ['Math', 'English'];
+const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
+
+function progressFor(quest) {
+  return { current: quest.answeredQuestions + 1, total: TOTAL_QUESTIONS };
+}
+
+async function startQuest(req, res) {
+  const { subject, difficulty } = req.body;
+
+  if (!SUBJECTS.includes(subject) || !DIFFICULTIES.includes(difficulty)) {
+    return res.status(400).json({ message: 'Invalid subject or difficulty' });
+  }
+
+  try {
+    const challenge = await generateChallenge({ subject, difficulty });
+    const questions = Array.from({ length: TOTAL_QUESTIONS }, (_, index) =>
+      index === 0 ? hiddenQuestion(challenge, false) : hiddenQuestion({
+        story: 'The next challenge awaits.',
+        imageKeyword: 'dungeon',
+        question: {
+          prompt: 'Pending challenge',
+          correctAnswer: 'pending',
+          explanation: 'The next challenge has not been revealed yet.',
+        },
+      }, false)
+    );
+    const quest = await Quest.create({
+      childId: req.user._id,
+      subject,
+      difficulty,
+      questions,
+      answeredQuestions: 0,
+      currentQuestionIndex: 0,
+      completed: false,
+    });
+
+    return res.status(201).json({
+      quest: { id: quest._id.toString(), subject, difficulty },
+      question: publicQuestion(quest.questions[0]),
+      progress: { current: 1, total: TOTAL_QUESTIONS },
+    });
+  } catch (error) {
+    return res.status(502).json({ message: error.message });
+  }
+}
+
+async function answerQuest(req, res) {
+  const { questId, answer } = req.body;
+
+  if (!questId || typeof answer !== 'string') {
+    return res.status(400).json({ message: 'Quest ID and answer are required' });
+  }
+
+  const quest = await Quest.findOne({ _id: questId, childId: req.user._id });
+  if (!quest) {
+    return res.status(404).json({ message: 'Quest not found' });
+  }
+  if (quest.completed || quest.answeredQuestions >= TOTAL_QUESTIONS) {
+    return res.status(409).json({ message: 'Quest is already complete' });
+  }
+
+  const currentQuestion = quest.questions[quest.currentQuestionIndex];
+  const isCorrect = answer.trim().toLowerCase() === currentQuestion.correctAnswer.trim().toLowerCase();
+  currentQuestion.userAnswer = answer;
+  currentQuestion.passed = isCorrect;
+  quest.answeredQuestions += 1;
+
+  if (quest.answeredQuestions === TOTAL_QUESTIONS) {
+    quest.completed = true;
+    await quest.save();
+    return res.status(200).json({
+      isCorrect,
+      completed: true,
+      progress: { current: TOTAL_QUESTIONS, total: TOTAL_QUESTIONS },
+      ...(isCorrect ? {} : {
+        feedback: {
+          correctAnswer: currentQuestion.correctAnswer,
+          explanation: currentQuestion.explanation,
+        },
+      }),
+    });
+  }
+
+  const branch = isCorrect ? 'progress' : 'setback';
+  const challenge = await generateChallenge({
+    subject: quest.subject,
+    difficulty: quest.difficulty,
+    branch,
+    previousAnswer: answer,
+  });
+  quest.currentQuestionIndex += 1;
+  quest.questions[quest.currentQuestionIndex] = hiddenQuestion(challenge, !isCorrect);
+  await quest.save();
+
+  return res.status(200).json({
+    isCorrect,
+    branch,
+    ...(isCorrect ? {} : {
+      feedback: {
+        correctAnswer: currentQuestion.correctAnswer,
+        explanation: currentQuestion.explanation,
+      },
+    }),
+    nextQuestion: publicQuestion(quest.questions[quest.currentQuestionIndex]),
+    progress: progressFor(quest),
+  });
+}
+
+module.exports = { answerQuest, startQuest };
