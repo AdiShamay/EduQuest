@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
+const imageRoutes = require('./routes/images');
 const questRoutes = require('./routes/quests');
 
 const app = express();
@@ -8,6 +9,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+app.use('/api/images', imageRoutes);
 app.use('/api/quests', questRoutes);
 
 app.get('/health', (req, res) => {

@@ -29,4 +29,9 @@
 - Parent dashboard API supports parent-scoped child listing and child-scoped analytics/history queries.
 - Verification: frontend Vitest passed 3 tests; frontend production build passed; frontend lint passed with one non-blocking React effect warning; full backend Jest passed 21 tests across 7 suites.
 - Known non-blocking build warnings: Tailwind at-rules reported by Lightning CSS and a Vite bundle-size warning.
-- Next milestone: perform the final manual authentication and dashboard workflow check.
+- Turn 5: complete and verified.
+- Child login now routes directly to quest setup; quest setup supports Math/English and Easy/Medium/Hard selections.
+- Active child gameplay renders keyword-based Unsplash scenes, five-question progress, answer submission, completion, and an educational correction overlay before setback/recovery questions.
+- Backend provides a child-authenticated Unsplash proxy with a friendly fallback image and keeps the access key server-side.
+- Verification: frontend Vitest passed 7 tests; frontend production build passed; frontend lint passed with one non-blocking React effect warning; full backend Jest passed 23 tests across 8 suites.
+- Next milestone: perform the final manual child login, quest setup, correct-answer, incorrect-answer, recovery, and completion workflow check.

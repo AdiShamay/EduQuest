@@ -39,6 +39,7 @@ function LoginPage() {
   const navigate = useNavigate()
   const { saveSession } = useAuth()
   const [isRegistering, setIsRegistering] = useState(false)
+  const [isChildLogin, setIsChildLogin] = useState(false)
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -49,26 +50,145 @@ function LoginPage() {
       const endpoint = isRegistering ? '/api/auth/register' : '/api/auth/login'
       const body = isRegistering ? { ...form, role: 'parent' } : form
       const response = await requestJson(endpoint, { method: 'POST', body: JSON.stringify(body) })
-      saveSession({ token: response.token, user: response.user }); navigate('/dashboard')
+      saveSession({ token: response.token, user: response.user }); navigate(response.user.role === 'child' ? '/quest-setup' : '/dashboard')
     } catch (submitError) { setError(submitError.message) } finally { setIsSubmitting(false) }
   }
   return <main className="portal-shell auth-layout"><section className="auth-panel">
-    <p className="eyebrow">EduQuest / Parent Gate</p>
+    <p className="eyebrow">EduQuest / {isChildLogin ? 'Child Gate' : 'Parent Gate'}</p>
     <h1>{isRegistering ? 'Forge your parent account' : 'Enter the quest'}</h1>
     <p className="lead">Guide learning journeys, then read the trail they leave behind.</p>
     <form className="auth-form" onSubmit={submit}>
       <label htmlFor="username">Username</label><input id="username" name="username" value={form.username} onChange={updateField} required />
       <label htmlFor="password">Password</label><input id="password" name="password" type="password" value={form.password} onChange={updateField} minLength="8" required />
       {error && <p className="form-error" role="alert">{error}</p>}
-      <button className="button button-primary" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Opening portal...' : isRegistering ? 'Create parent account' : 'Enter dashboard'}</button>
+      <button className="button button-primary" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Opening portal...' : isRegistering ? 'Create parent account' : isChildLogin ? 'Enter quest' : 'Enter dashboard'}</button>
     </form>
-    <button className="text-button" type="button" onClick={() => { setError(''); setIsRegistering(!isRegistering) }}>{isRegistering ? 'Return to sign in' : 'Create parent account'}</button>
+    {!isChildLogin && <button className="text-button" type="button" onClick={() => { setError(''); setIsRegistering(!isRegistering) }}>{isRegistering ? 'Return to sign in' : 'Create parent account'}</button>}
+    {!isRegistering && <button className="text-button" type="button" onClick={() => { setError(''); setIsChildLogin(!isChildLogin) }}>{isChildLogin ? 'Parent login' : 'Child login'}</button>}
   </section></main>
 }
 
 function ProtectedParentRoute({ children }) {
   const { session } = useAuth()
   return session?.user?.role === 'parent' ? children : <Navigate to="/login" replace />
+}
+
+function ProtectedChildRoute({ children }) {
+  const { session } = useAuth()
+  return session?.user?.role === 'child' ? children : <Navigate to="/login" replace />
+}
+
+function QuestSetup() {
+  const navigate = useNavigate()
+  const { session } = useAuth()
+  const [subject, setSubject] = useState('')
+  const [difficulty, setDifficulty] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function start(event) {
+    event.preventDefault()
+    if (!subject || !difficulty) {
+      setError('Choose a subject and difficulty before entering the realm.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      const response = await requestJson('/api/quests/start', {
+        method: 'POST',
+        body: JSON.stringify({ subject, difficulty }),
+      }, session.token)
+      sessionStorage.setItem('eduquest_active_quest', JSON.stringify({
+        quest: response.quest,
+        question: response.question,
+        progress: response.progress,
+      }))
+      navigate('/quest')
+    } catch (startError) {
+      setError(startError.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return <main className="portal-shell setup-shell"><section className="setup-panel">
+    <p className="eyebrow">EduQuest / The Crossroads</p>
+    <h1>Choose your quest</h1>
+    <p className="lead">Pick a path. The game master will shape five challenges around it.</p>
+    <form className="quest-form" onSubmit={start}>
+      <fieldset><legend>Subject</legend><div className="choice-grid">{['Math', 'English'].map((option) => <button key={option} className={subject === option ? 'choice active' : 'choice'} type="button" onClick={() => setSubject(option)}>{option}</button>)}</div></fieldset>
+      <fieldset><legend>Difficulty</legend><div className="choice-grid">{['Easy', 'Medium', 'Hard'].map((option) => <button key={option} className={difficulty === option ? 'choice active' : 'choice'} type="button" onClick={() => setDifficulty(option)}>{option}</button>)}</div></fieldset>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      <button className="button button-primary" type="submit" disabled={loading}>{loading ? 'Opening the gate...' : 'Begin quest'}</button>
+    </form>
+  </section></main>
+}
+
+function ActiveQuest() {
+  const { session } = useAuth()
+  const navigate = useNavigate()
+  const savedQuest = JSON.parse(sessionStorage.getItem('eduquest_active_quest') || 'null')
+  const [questState, setQuestState] = useState(savedQuest)
+  const [imageUrl, setImageUrl] = useState('')
+  const [answer, setAnswer] = useState('')
+  const [feedback, setFeedback] = useState(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [completed, setCompleted] = useState(false)
+
+  useEffect(() => {
+    if (!questState?.question?.imageKeyword) return
+    requestJson(`/api/images/${encodeURIComponent(questState.question.imageKeyword)}`, {}, session.token)
+      .then((response) => setImageUrl(response.imageUrl))
+      .catch(() => setImageUrl('https://images.unsplash.com/photo-1518709268805-4e9042?auto=format&fit=crop&w=2000&q=80'))
+  }, [questState?.question?.imageKeyword, session.token])
+
+  if (!questState) return <Navigate to="/quest-setup" replace />
+
+  async function submitAnswer(event) {
+    event.preventDefault()
+    if (!answer.trim() || loading || completed) return
+    setLoading(true)
+    setError('')
+    try {
+      const response = await requestJson('/api/quests/answer', {
+        method: 'POST',
+        body: JSON.stringify({ questId: questState.quest.id, answer }),
+      }, session.token)
+      setAnswer('')
+      if (response.completed) {
+        setCompleted(true)
+        return
+      }
+      if (!response.isCorrect) {
+        setFeedback(response.feedback)
+        setQuestState((current) => ({ ...current, pendingNextQuestion: response.nextQuestion, pendingProgress: response.progress }))
+        return
+      }
+      setQuestState((current) => ({ ...current, question: response.nextQuestion, progress: response.progress }))
+    } catch (submitError) {
+      setError(submitError.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function continueAfterFeedback() {
+    setQuestState((current) => ({ ...current, question: current.pendingNextQuestion, progress: current.pendingProgress, pendingNextQuestion: undefined, pendingProgress: undefined }))
+    setFeedback(null)
+  }
+
+  if (completed) return <main className="quest-scene complete-scene" style={{ backgroundImage: `url(${imageUrl})` }}><section className="story-card"><p className="eyebrow">Victory</p><h1>Quest complete</h1><p>You answered all five challenges. The realm remembers your courage.</p><button className="button button-primary" type="button" onClick={() => navigate('/quest-setup')}>Begin another quest</button></section></main>
+
+  return <main className="quest-scene" style={{ backgroundImage: `url(${imageUrl})` }}><div className="quest-shade" /><section className="story-card">
+    <div className="quest-meta"><span>{questState.quest.subject} / {questState.quest.difficulty}</span><strong>Question {questState.progress.current} of {questState.progress.total}</strong></div>
+    <p className="eyebrow">The game master speaks</p><h1>{questState.question.prompt}</h1>
+    <form className="answer-form" onSubmit={submitAnswer}><label htmlFor="quest-answer">Your answer</label><input id="quest-answer" value={answer} onChange={(event) => setAnswer(event.target.value)} autoComplete="off" disabled={loading} /><button className="button button-primary" type="submit" disabled={loading}>{loading ? 'Consulting the oracle...' : 'Submit answer'}</button></form>
+    {error && <p className="form-error" role="alert">{error}</p>}
+  </section>
+  {feedback && <div className="feedback-backdrop"><section className="feedback-dialog" role="dialog" aria-modal="true"><p className="eyebrow">A setback, not a defeat</p><h2>Correct answer: {feedback.correctAnswer}</h2><p>{feedback.explanation}</p><button className="button button-primary" type="button" onClick={continueAfterFeedback}>Continue</button></section></div>}
+  </main>
 }
 
 const emptyAnalytics = { metrics: { totalQuests: 0, overallAccuracy: 0, favoriteDifficulty: 'None' }, monthlySuccessByWeek: [], dailyAccuracy: [], history: [] }
@@ -119,7 +239,7 @@ function Dashboard() {
 }
 
 function App() {
-  return <BrowserRouter><AuthProvider><Routes><Route path="/login" element={<LoginPage />} /><Route path="/dashboard" element={<ProtectedParentRoute><Dashboard /></ProtectedParentRoute>} /><Route path="*" element={<Navigate to="/login" replace />} /></Routes></AuthProvider></BrowserRouter>
+  return <BrowserRouter><AuthProvider><Routes><Route path="/login" element={<LoginPage />} /><Route path="/dashboard" element={<ProtectedParentRoute><Dashboard /></ProtectedParentRoute>} /><Route path="/quest-setup" element={<ProtectedChildRoute><QuestSetup /></ProtectedChildRoute>} /><Route path="/quest" element={<ProtectedChildRoute><ActiveQuest /></ProtectedChildRoute>} /><Route path="*" element={<Navigate to="/login" replace />} /></Routes></AuthProvider></BrowserRouter>
 }
 
 export default App

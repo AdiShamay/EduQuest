@@ -93,4 +93,107 @@ describe('EduQuest frontend', () => {
     await waitFor(() => expect(screen.getByText(/nova/i)).toBeInTheDocument())
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/auth/create-child', expect.objectContaining({ method: 'POST' }))
   })
+
+  it('logs a child in and routes directly to quest setup', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockReturnValue(jsonResponse({
+      token: 'child-token',
+      user: { id: 'child-1', username: 'Ari', role: 'child' },
+    }))
+
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /child login/i }))
+    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: 'Ari' } })
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'child-password' } })
+    fireEvent.click(screen.getByRole('button', { name: /enter quest/i }))
+
+    expect(await screen.findByRole('heading', { name: /choose your quest/i })).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/login', expect.anything())
+  })
+
+  it('starts a quest from setup and renders the active narrative scene', async () => {
+    sessionStorage.setItem('eduquest_session', JSON.stringify({
+      token: 'child-token', user: { id: 'child-1', username: 'Ari', role: 'child' },
+    }))
+    setPath('/quest-setup')
+    vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(jsonResponse({
+        quest: { id: 'quest-1', subject: 'Math', difficulty: 'Medium' },
+        question: { prompt: 'Solve the rune: 5 x 4.', imageKeyword: 'cavern' },
+        progress: { current: 1, total: 5 },
+      }))
+      .mockReturnValueOnce(jsonResponse({ imageUrl: 'https://images.unsplash.com/cavern' }))
+
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /^math$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^medium$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /begin quest/i }))
+
+    expect(await screen.findByText(/solve the rune/i)).toBeInTheDocument()
+    expect(screen.getByText(/question 1 of 5/i)).toBeInTheDocument()
+    expect(screen.getByRole('main')).toHaveStyle({ backgroundImage: 'url(https://images.unsplash.com/cavern)' })
+  })
+
+  it('pauses on an incorrect answer, then loads the recovery branch', async () => {
+    sessionStorage.setItem('eduquest_session', JSON.stringify({
+      token: 'child-token', user: { id: 'child-1', username: 'Ari', role: 'child' },
+    }))
+    sessionStorage.setItem('eduquest_active_quest', JSON.stringify({
+      quest: { id: 'quest-1', subject: 'Math', difficulty: 'Medium' },
+      question: { prompt: 'Solve 5 x 4.', imageKeyword: 'gate' },
+      progress: { current: 1, total: 5 },
+    }))
+    setPath('/quest')
+    vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(jsonResponse({ imageUrl: 'https://images.unsplash.com/gate' }))
+      .mockReturnValueOnce(jsonResponse({
+        isCorrect: false,
+        branch: 'setback',
+        feedback: { correctAnswer: '20', explanation: 'Five groups of four make twenty.' },
+        nextQuestion: { prompt: 'Escape the trap: 3 + 2.', imageKeyword: 'trap' },
+        progress: { current: 2, total: 5 },
+      }))
+      .mockReturnValueOnce(jsonResponse({ imageUrl: 'https://images.unsplash.com/trap' }))
+
+    render(<App />)
+    expect(await screen.findByText(/solve 5 x 4/i)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/your answer/i), { target: { value: '15' } })
+    fireEvent.click(screen.getByRole('button', { name: /submit answer/i }))
+
+    expect(await screen.findByRole('dialog')).toHaveTextContent(/correct answer: 20/i)
+    expect(screen.queryByText(/escape the trap/i)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(await screen.findByText(/escape the trap/i)).toBeInTheDocument()
+    expect(screen.getByText(/question 2 of 5/i)).toBeInTheDocument()
+  })
+
+  it('shows completion after the fifth answered question', async () => {
+    sessionStorage.setItem('eduquest_session', JSON.stringify({
+      token: 'child-token', user: { id: 'child-1', username: 'Ari', role: 'child' },
+    }))
+    sessionStorage.setItem('eduquest_active_quest', JSON.stringify({
+      quest: { id: 'quest-1', subject: 'English', difficulty: 'Easy' },
+      question: { prompt: 'Name the key.', imageKeyword: 'tower' },
+      progress: { current: 1, total: 5 },
+    }))
+    setPath('/quest')
+    let answerCount = 0
+    vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(jsonResponse({ imageUrl: 'https://images.unsplash.com/tower' }))
+      .mockImplementation((url) => {
+        if (!url.includes('/api/quests/answer')) return jsonResponse({})
+        answerCount += 1
+        return jsonResponse(answerCount === 5
+          ? { isCorrect: true, completed: true, progress: { current: 5, total: 5 } }
+          : { isCorrect: true, completed: false, nextQuestion: { prompt: `Challenge ${answerCount + 1}`, imageKeyword: 'tower' }, progress: { current: answerCount + 1, total: 5 } })
+      })
+
+    render(<App />)
+    expect(await screen.findByText(/name the key/i)).toBeInTheDocument()
+    for (let index = 0; index < 5; index += 1) {
+      fireEvent.change(screen.getByLabelText(/your answer/i), { target: { value: 'silver' } })
+      fireEvent.click(screen.getByRole('button', { name: /submit answer/i }))
+      if (index < 4) await waitFor(() => expect(screen.getByText(`Challenge ${index + 2}`)).toBeInTheDocument())
+    }
+    expect(await screen.findByText(/quest complete/i)).toBeInTheDocument()
+  })
 })
