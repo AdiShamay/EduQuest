@@ -1,4 +1,5 @@
 const Quest = require('../models/Quest');
+const User = require('../models/User');
 const {
   TOTAL_QUESTIONS,
   generateChallenge,
@@ -8,6 +9,93 @@ const {
 
 const SUBJECTS = ['Math', 'English'];
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
+
+function formatDate(date) {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
+function weekLabel(date) {
+  const day = new Date(date).getUTCDate();
+  return `Week ${Math.ceil(day / 7)}`;
+}
+
+async function getAnalytics(req, res) {
+  const child = await User.findOne({
+    _id: req.params.childId,
+    parentId: req.user._id,
+    role: 'child',
+  });
+
+  if (!child) {
+    return res.status(403).json({ message: 'Child is not linked to this parent' });
+  }
+
+  const quests = await Quest.find({ childId: child._id }).sort({ createdAt: -1 });
+  const difficultyCounts = quests.reduce((counts, quest) => {
+    counts[quest.difficulty] = (counts[quest.difficulty] || 0) + 1;
+    return counts;
+  }, {});
+  const answeredQuestions = quests.flatMap((quest) =>
+    quest.questions.slice(0, quest.answeredQuestions)
+  );
+  const passedQuestions = answeredQuestions.filter((question) => question.passed).length;
+  const favoriteDifficulty = Object.entries(difficultyCounts).sort((left, right) =>
+    right[1] - left[1]
+  )[0]?.[0] || 'None';
+
+  // Aggregate the same quest records into the two chart shapes so the UI never needs to infer metrics.
+  const monthlySuccessByWeek = quests.reduce((weeks, quest) => {
+    const week = weekLabel(quest.createdAt);
+    const entry = weeks.find((item) => item.week === week);
+    const successful = quest.questions.slice(0, quest.answeredQuestions).every(
+      (question) => question.passed
+    ) ? 1 : 0;
+    if (entry) {
+      entry.successful += successful;
+      entry.total += 1;
+    } else {
+      weeks.push({ week, successful, total: 1 });
+    }
+    return weeks;
+  }, []);
+
+  const dailyAccuracy = Object.values(
+    quests.reduce((days, quest) => {
+      const date = formatDate(quest.createdAt);
+      days[date] ||= { date, passed: 0, answered: 0 };
+      quest.questions.slice(0, quest.answeredQuestions).forEach((question) => {
+        days[date].passed += question.passed ? 1 : 0;
+        days[date].answered += 1;
+      });
+      return days;
+    }, {})
+  ).map(({ date, passed, answered }) => ({
+    date,
+    accuracy: answered ? Math.round((passed / answered) * 100) : 0,
+  }));
+
+  return res.status(200).json({
+    child: { id: child._id.toString(), username: child.username },
+    metrics: {
+      totalQuests: quests.length,
+      overallAccuracy: answeredQuestions.length
+        ? Math.round((passedQuestions / answeredQuestions.length) * 100)
+        : 0,
+      favoriteDifficulty,
+    },
+    monthlySuccessByWeek,
+    dailyAccuracy,
+    history: quests.map((quest) => ({
+      id: quest._id.toString(),
+      subject: quest.subject,
+      difficulty: quest.difficulty,
+      completed: quest.completed,
+      score: quest.questions.slice(0, quest.answeredQuestions).filter((question) => question.passed).length,
+      totalQuestions: quest.answeredQuestions,
+      createdAt: quest.createdAt,
+    })),
+  });
+}
 
 function progressFor(quest) {
   return { current: quest.answeredQuestions + 1, total: TOTAL_QUESTIONS };
@@ -115,4 +203,4 @@ async function answerQuest(req, res) {
   });
 }
 
-module.exports = { answerQuest, startQuest };
+module.exports = { answerQuest, getAnalytics, startQuest };

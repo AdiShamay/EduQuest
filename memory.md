@@ -24,4 +24,9 @@
 ## Status
 - Turn 1, Turn 2, and Turn 3: complete and verified.
 - Verification: quest suite passed with 5 tests; full backend suite previously passed with 13 tests; frontend production build passed.
-- Next milestone: implement parent dashboard analytics and child management UI.
+- Turn 4: complete and verified.
+- Parent dashboard now includes JWT login/registration, protected routing, linked-child tabs, child creation, KPI metrics, Recharts success/accuracy charts, and difficulty-aware quest history.
+- Parent dashboard API supports parent-scoped child listing and child-scoped analytics/history queries.
+- Verification: frontend Vitest passed 3 tests; frontend production build passed; frontend lint passed with one non-blocking React effect warning; full backend Jest passed 21 tests across 7 suites.
+- Known non-blocking build warnings: Tailwind at-rules reported by Lightning CSS and a Vite bundle-size warning.
+- Next milestone: perform the final manual authentication and dashboard workflow check.

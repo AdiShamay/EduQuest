@@ -85,4 +85,9 @@ async function createChild(req, res) {
   }
 }
 
-module.exports = { createChild, login, register };
+async function listChildren(req, res) {
+  const children = await User.find({ parentId: req.user._id, role: 'child' }).sort({ username: 1 });
+  return res.status(200).json({ children: children.map(serializeUser) });
+}
+
+module.exports = { createChild, listChildren, login, register };
