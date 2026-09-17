@@ -43,10 +43,15 @@ async function generateChallenge({ subject, difficulty, branch = 'opening', prev
     ? `The child answered incorrectly with ${previousAnswer}. Create a short setback and recovery challenge.`
     : 'Continue the quest with a normal progression challenge.';
   const prompt = `Create a ${subject} ${difficulty} quest challenge. ${context}`;
-  const result = await openrouter.callOpenRouter({ prompt });
-
-  if (!result.success) {
-    throw new Error(result.message);
+  let result;
+  try {
+    result = await openrouter.callOpenRouter({ prompt });
+    if (!result.success) {
+      throw new Error(result.message);
+    }
+  } catch (error) {
+    console.error('Raw OpenRouter Error:', error.response?.data || error.message || error);
+    throw error;
   }
 
   return parseGameMasterResponse(result.message);

@@ -16,4 +16,10 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
+app.use((error, req, res, next) => {
+  console.error('Backend Error:', error.message || error);
+  if (res.headersSent) return next(error);
+  return res.status(500).json({ message: 'Internal server error' });
+});
+
 module.exports = app;

@@ -102,6 +102,7 @@ function progressFor(quest) {
 }
 
 async function startQuest(req, res) {
+  console.log('--- START QUEST ENDPOINT HIT ---', req.body);
   const { subject, difficulty } = req.body;
 
   if (!SUBJECTS.includes(subject) || !DIFFICULTIES.includes(difficulty)) {
@@ -137,7 +138,7 @@ async function startQuest(req, res) {
       progress: { current: 1, total: TOTAL_QUESTIONS },
     });
   } catch (error) {
-    return res.status(502).json({ message: error.message });
+    return res.status(500).json({ message: 'Unable to start quest', error: error.message || error });
   }
 }
 
