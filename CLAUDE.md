@@ -8,7 +8,8 @@ You are an expert agentic software engineer collaborating on "EduQuest," an inte
 - **Backend:** Node.js with Express.js.
 - **Authentication:** Custom JWT (JSON Web Tokens) with bcrypt. Role-based access (`parent` vs `child`).
 - **State/Storage:** MongoDB with Mongoose. Schema Architecture: Use an Embedded Documents approach for quests. Maintain 'Users' and 'Quests' collections. Support a one-to-many relationship where a parent can have multiple children. Child user documents MUST contain a 'parentId' reference. Each 'Quest' document MUST contain an embedded array of exactly 5 question objects (including the narrative prompt, the user's answer, the correct answer, and a pass/fail boolean). These 5 objects seamlessly include both standard progression and branched "recovery" questions.
-- **APIs:** OpenRouter API, Unsplash API, Free Dictionary API.
+- **APIs:** OpenRouter API, Unsplash API, Free Dictionary API. 
+  - **CRITICAL ARCHITECTURE NOTE:** The OpenRouter LLM is responsible for generating ALL challenges (both Math equations and English questions) as part of the narrative. For English quests, the backend fetches a vocabulary word and its meaning from the Free Dictionary API, which is then fed to the LLM so it can generate the specific narrative question around that word.
 
 ## 3. Mandatory Workflow (Plan First, Code Later)
 Your autonomy is strictly limited. Follow this spiral development workflow:
