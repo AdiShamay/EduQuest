@@ -1,12 +1,16 @@
-const DEFAULT_MODEL = 'openrouter/auto';
+const DEFAULT_MODEL = 'meta-llama/llama-3.1-8b-instruct:free';
 
 function buildOpenRouterConfig({ model = DEFAULT_MODEL, prompt }) {
+  if (!model.endsWith(':free')) {
+    throw new Error('OPENROUTER_MODEL must use a :free model');
+  }
+
   return {
     model,
     messages: [
       {
         role: 'user',
-        content: prompt,
+        content: `${prompt}\nReturn minified JSON only. Keep each narrative segment under 30 words and provide one image keyword.`,
       },
     ],
     temperature: 0.7,
@@ -15,7 +19,7 @@ function buildOpenRouterConfig({ model = DEFAULT_MODEL, prompt }) {
 }
 
 async function callOpenRouter({
-  model = DEFAULT_MODEL,
+  model = process.env.OPENROUTER_MODEL || DEFAULT_MODEL,
   prompt,
   fetchImpl = global.fetch,
   apiKey = process.env.OPENROUTER_API_KEY,

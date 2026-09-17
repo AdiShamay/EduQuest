@@ -3,7 +3,7 @@
 ## Turn 1: Infrastructure & Boilerplate
 - Backend initialized with Express and Jest.
 - Health endpoint and MongoDB config are in place and passing tests.
-- OpenRouter utility scaffolded with a free-tier model configuration and graceful fallback messaging.
+- OpenRouter utility enforces an explicit :free model, uses compact JSON prompt constraints, and provides graceful fallback messaging.
 - Environment variables documented in .env.example.
 - Frontend scaffolding is complete with Vite, React, Tailwind, React Router, and Recharts dependencies.
 
@@ -16,5 +16,5 @@
 
 ## Status
 - Turn 1 and Turn 2: complete and verified.
-- Verification: 5 Jest suites passed, 12 tests passed.
+- Verification: 5 Jest suites passed, 13 tests passed; frontend production build passed.
 - Next milestone: implement quest setup and progression behavior.
