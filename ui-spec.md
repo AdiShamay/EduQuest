@@ -17,7 +17,9 @@
 - **The Narrative UI:** 
   - **Background:** Dynamic Unsplash image representing the current scene (e.g., a dark cave, a wizard's tower).
   - **Card Overlay:** A centered, translucent dark card holding the short narrative text (max 30 words).
-- **The Challenge UI:** Input fields or buttons for solving the equation/translating the word.
+- **The Challenge UI:** Dynamic input based on the subject. 
+  - For **Math** quests: A text/number input field where the child explicitly types their answer.
+  - For **English** quests: A multiple-choice interface with exactly 4 buttons (1 correct answer, 3 distractors pulled from the same difficulty word bank).
 - **Quest Progression:** A clear progress indicator (e.g., "Question X of 5"). The quest always ends after exactly 5 answered questions. Mistakes trigger an educational correction overlay, log the error, and branch the narrative into a "setback/recovery" scene, which serves as the context for the next question in the 5-question sequence.
 
 ## 4. Feedback & Error Handling (Crucial)

@@ -35,3 +35,10 @@
 - Backend provides a child-authenticated Unsplash proxy with a friendly fallback image and keeps the access key server-side.
 - Verification: frontend Vitest passed 7 tests; frontend production build passed; frontend lint passed with one non-blocking React effect warning; full backend Jest passed 23 tests across 8 suites.
 - Next milestone: perform the final manual child login, quest setup, correct-answer, incorrect-answer, recovery, and completion workflow check.
+
+## Turn 6: Architecture Refactor (Quest Engine Pivot)
+- Strategic pivot: Removed LLM dependency for question generation to eliminate parsing errors and 429 rate-limit bottlenecks.
+- Backend is now strictly responsible for generating Math questions (dynamic arithmetic logic based on difficulty) and English questions.
+- English questions are constructed programmatically by selecting a word from local difficulty banks and making a live API call to the Free Dictionary API to fetch definitions/synonyms.
+- English questions implement a 4-option multiple-choice format; Math questions implement a direct typed input field.
+- OpenRouter LLM is now strictly limited to generating the narrative wrapper (30 words max) and a single image keyword per turn.
