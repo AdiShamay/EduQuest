@@ -174,6 +174,10 @@ function ActiveQuest() {
     }
   }
 
+  function chooseEnglishAnswer(option) {
+    setAnswer(option)
+  }
+
   function continueAfterFeedback() {
     setQuestState((current) => ({ ...current, question: current.pendingNextQuestion, progress: current.pendingProgress, pendingNextQuestion: undefined, pendingProgress: undefined }))
     setFeedback(null)
@@ -183,8 +187,8 @@ function ActiveQuest() {
 
   return <main className="quest-scene" style={{ backgroundImage: `url(${imageUrl})` }}><div className="quest-shade" /><section className="story-card">
     <div className="quest-meta"><span>{questState.quest.subject} / {questState.quest.difficulty}</span><strong>Question {questState.progress.current} of {questState.progress.total}</strong></div>
-    <p className="eyebrow">The game master speaks</p><h1>{questState.question.prompt}</h1>
-    <form className="answer-form" onSubmit={submitAnswer}><label htmlFor="quest-answer">Your answer</label><input id="quest-answer" value={answer} onChange={(event) => setAnswer(event.target.value)} autoComplete="off" disabled={loading} /><button className="button button-primary" type="submit" disabled={loading}>{loading ? 'Consulting the oracle...' : 'Submit answer'}</button></form>
+    <p className="eyebrow">The game master speaks</p><p className="quest-story">{questState.question.story}</p><h1>{questState.question.prompt}</h1>
+    {questState.question.type === 'english' ? <div className="answer-options" aria-label="Answer choices">{questState.question.options.map((option) => <button key={option} className={answer === option ? 'answer-option selected' : 'answer-option'} type="button" onClick={() => chooseEnglishAnswer(option)} disabled={loading}>{option}</button>)}<button className="button button-primary" type="button" onClick={submitAnswer} disabled={loading || !answer}>{loading ? 'Consulting the oracle...' : 'Submit answer'}</button></div> : <form className="answer-form" onSubmit={submitAnswer}><label htmlFor="quest-answer">Your answer</label><input id="quest-answer" value={answer} onChange={(event) => setAnswer(event.target.value)} autoComplete="off" disabled={loading} /><button className="button button-primary" type="submit" disabled={loading}>{loading ? 'Consulting the oracle...' : 'Submit answer'}</button></form>}
     {error && <p className="form-error" role="alert">{error}</p>}
   </section>
   {feedback && <div className="feedback-backdrop"><section className="feedback-dialog" role="dialog" aria-modal="true"><p className="eyebrow">A setback, not a defeat</p><h2>Correct answer: {feedback.correctAnswer}</h2><p>{feedback.explanation}</p><button className="button button-primary" type="button" onClick={continueAfterFeedback}>Continue</button></section></div>}

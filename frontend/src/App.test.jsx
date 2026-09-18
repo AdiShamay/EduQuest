@@ -196,4 +196,25 @@ describe('EduQuest frontend', () => {
     }
     expect(await screen.findByText(/quest complete/i)).toBeInTheDocument()
   })
+
+  it('renders exactly four English answer choices instead of a typed input', async () => {
+    sessionStorage.setItem('eduquest_session', JSON.stringify({
+      token: 'child-token', user: { id: 'child-1', username: 'Ari', role: 'child' },
+    }))
+    sessionStorage.setItem('eduquest_active_quest', JSON.stringify({
+      quest: { id: 'quest-english', subject: 'English', difficulty: 'Easy' },
+      question: {
+        type: 'english', prompt: 'Choose the definition of brave.', imageKeyword: 'library',
+        options: ['A', 'B', 'C', 'D'],
+      },
+      progress: { current: 1, total: 5 },
+    }))
+    setPath('/quest')
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(jsonResponse({ imageUrl: 'https://images.unsplash.com/library' }))
+
+    render(<App />)
+    expect(await screen.findByText(/choose the definition/i)).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /^[A-D]$/ })).toHaveLength(4)
+    expect(screen.queryByLabelText(/your answer/i)).not.toBeInTheDocument()
+  })
 })

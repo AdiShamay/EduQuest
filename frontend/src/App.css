@@ -258,6 +258,10 @@
 .answer-form { display: grid; gap: 10px; margin-top: 30px; }
 .answer-form label { color: #cbd5e1; }
 .answer-form input { width: 100%; padding: 14px; border: 1px solid #64748b; border-radius: 3px; color: #f8fafc; background: rgba(15, 23, 42, .9); }
+.quest-story { color: #cbd5e1; font-size: 1.05rem; }
+.answer-options { display: grid; gap: 10px; margin-top: 28px; }
+.answer-option { border: 1px solid #64748b; border-radius: 3px; padding: 14px; color: #f8fafc; text-align: left; background: rgba(15, 23, 42, .9); cursor: pointer; }
+.answer-option:hover, .answer-option.selected { border-color: #e2b659; background: rgba(226, 182, 89, .18); }
 .feedback-backdrop { position: fixed; z-index: 5; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(2, 6, 23, .76); }
 .feedback-dialog { width: min(520px, 100%); padding: 32px; border: 1px solid #e2b659; background: #111827; box-shadow: 0 25px 80px rgba(0, 0, 0, .5); }
 .feedback-dialog h2 { color: #f8fafc; }

@@ -66,7 +66,7 @@ afterAll(async () => {
       await mongoServer.stop();
     }
   } finally {
-    await mongoose.disconnect();
+    await mongoose.connection.close();
   }
 });
 
@@ -89,7 +89,7 @@ describe('Quest engine endpoints', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.progress).toEqual({ current: 1, total: 5 });
-    expect(response.body.question.prompt).toBe('A rune glows beside the gate.');
+    expect(response.body.question.prompt).toMatch(/^Solve:/);
     expect(response.body.question.correctAnswer).toBeUndefined();
     expect(quest.questions).toHaveLength(5);
     expect(quest.subject).toBe('Math');
@@ -145,27 +145,32 @@ describe('Quest engine endpoints', () => {
       .post('/api/quests/start')
       .set('Authorization', `Bearer ${child.token}`)
       .send({ subject: 'Math', difficulty: 'Medium' });
+    const startedQuest = await Quest.findById(start.body.quest.id);
     const answer = await request(app)
       .post('/api/quests/answer')
       .set('Authorization', `Bearer ${child.token}`)
-      .send({ questId: start.body.quest.id, answer: '15' });
+      .send({ questId: start.body.quest.id, answer: '__wrong_answer__' });
     const quest = await Quest.findById(start.body.quest.id);
 
     expect(answer.status).toBe(200);
     expect(answer.body.isCorrect).toBe(false);
     expect(answer.body.feedback).toEqual(
-      expect.objectContaining({ correctAnswer: '20', explanation: 'Five groups of four make twenty.' })
+      expect.objectContaining({ correctAnswer: startedQuest.questions[0].correctAnswer, explanation: startedQuest.questions[0].explanation })
     );
     expect(answer.body.branch).toBe('setback');
-    expect(answer.body.nextQuestion.prompt).toContain('ward snaps shut');
+    expect(answer.body.nextQuestion.prompt).toMatch(/^Solve:/);
     expect(answer.body.nextQuestion.imageKeyword).toBe('trap');
-    expect(quest.questions[0].userAnswer).toBe('15');
+    expect(quest.questions[0].userAnswer).toBe('__wrong_answer__');
     expect(quest.questions[0].passed).toBe(false);
     expect(quest.questions[1].isRecovery).toBe(true);
   });
 
   it('progresses normally after a correct answer', async () => {
     const child = await createChild();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [{ meanings: [{ definitions: [{ definition: 'A hidden word meaning.' }] }] }],
+    });
     jest.spyOn(openrouter, 'callOpenRouter')
       .mockResolvedValueOnce({
         success: true,
@@ -180,16 +185,18 @@ describe('Quest engine endpoints', () => {
       .post('/api/quests/start')
       .set('Authorization', `Bearer ${child.token}`)
       .send({ subject: 'English', difficulty: 'Hard' });
+    const startedQuest = await Quest.findById(start.body.quest.id);
     const answer = await request(app)
       .post('/api/quests/answer')
       .set('Authorization', `Bearer ${child.token}`)
-      .send({ questId: start.body.quest.id, answer: 'silver' });
+      .send({ questId: start.body.quest.id, answer: startedQuest.questions[0].correctAnswer });
 
     expect(answer.status).toBe(200);
     expect(answer.body.isCorrect).toBe(true);
     expect(answer.body.branch).toBe('progress');
     expect(answer.body.feedback).toBeUndefined();
-    expect(answer.body.nextQuestion.prompt).toBe('The path opens.');
+    expect(answer.body.nextQuestion.type).toBe('english');
+    expect(answer.body.nextQuestion.options).toHaveLength(4);
   });
 
   it('completes on the fifth answer and rejects a sixth answer', async () => {

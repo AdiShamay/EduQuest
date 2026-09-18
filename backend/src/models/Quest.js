@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const questionSchema = new mongoose.Schema(
   {
     narrativePrompt: { type: String, required: true, maxlength: 300 },
+    questionType: { type: String, enum: ['math', 'english'], default: 'math' },
+    options: { type: [String], default: [] },
+    word: { type: String, default: '' },
     userAnswer: { type: String, required: true },
     correctAnswer: { type: String, required: true },
     passed: { type: Boolean, required: true },

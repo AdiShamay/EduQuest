@@ -116,9 +116,11 @@ async function startQuest(req, res) {
         story: 'The next challenge awaits.',
         imageKeyword: 'dungeon',
         question: {
+          type: 'math',
           prompt: 'Pending challenge',
           correctAnswer: 'pending',
           explanation: 'The next challenge has not been revealed yet.',
+          options: [],
         },
       }, false)
     );
