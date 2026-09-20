@@ -5,25 +5,28 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 const app = require('../src/app');
 const User = require('../src/models/User');
 const Quest = require('../src/models/Quest');
-const openrouter = require('../src/services/openrouter');
 const { connectDB } = require('../src/config/database');
 
 let mongoServer;
 
-function gameMasterResponse({
-  prompt,
-  correctAnswer,
-  explanation = 'The answer follows the challenge clues.',
-  imageKeyword = 'cavern',
-}) {
-  return JSON.stringify({
-    story: prompt,
-    imageKeyword,
-    question: {
-      prompt,
-      correctAnswer,
-      explanation,
-    },
+function narrativeResponse({ prompt, imageKeyword = 'cavern' }) {
+  return { story: prompt, imageKeyword };
+}
+
+function mockExternalResponses(narratives) {
+  let narrativeIndex = 0;
+  return jest.spyOn(global, 'fetch').mockImplementation(async (url) => {
+    if (url.includes('api.datamuse.com')) {
+      return { ok: true, json: async () => [{ defs: ['n\tA hidden word meaning.'] }] };
+    }
+    const narrative = narratives[Math.min(narrativeIndex, narratives.length - 1)];
+    narrativeIndex += 1;
+    return {
+      ok: true,
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: JSON.stringify(narrative) }] } }],
+      }),
+    };
   });
 }
 
@@ -71,15 +74,13 @@ afterAll(async () => {
 });
 
 describe('Quest engine endpoints', () => {
-  it('starts a five-question child quest and asks OpenRouter for the opening challenge', async () => {
+  it('starts a five-question child quest and asks Gemini for the narrative wrapper', async () => {
     const child = await createChild();
-    const openRouterMock = jest.spyOn(openrouter, 'callOpenRouter').mockResolvedValue({
-      success: true,
-      message: gameMasterResponse({
+    const narrativeMock = mockExternalResponses([
+      narrativeResponse({
         prompt: 'A rune glows beside the gate.',
-        correctAnswer: '12',
-      }),
-    });
+      })
+    ]);
 
     const response = await request(app)
       .post('/api/quests/start')
@@ -94,9 +95,7 @@ describe('Quest engine endpoints', () => {
     expect(quest.questions).toHaveLength(5);
     expect(quest.subject).toBe('Math');
     expect(quest.difficulty).toBe('Easy');
-    expect(openRouterMock).toHaveBeenCalledWith(
-      expect.objectContaining({ prompt: expect.stringContaining('Math') })
-    );
+    expect(narrativeMock).toHaveBeenCalledWith(expect.stringContaining('generativelanguage.googleapis.com'));
   });
 
   it('rejects invalid quest setup and non-child access', async () => {
@@ -122,24 +121,13 @@ describe('Quest engine endpoints', () => {
 
   it('returns educational correction and generates a recovery challenge after an incorrect answer', async () => {
     const child = await createChild();
-    jest.spyOn(openrouter, 'callOpenRouter')
-      .mockResolvedValueOnce({
-        success: true,
-        message: gameMasterResponse({
-          prompt: 'Solve the ward: 5 x 4.',
-          correctAnswer: '20',
-          explanation: 'Five groups of four make twenty.',
-        }),
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        message: gameMasterResponse({
-          prompt: 'The ward snaps shut. Escape by solving 3 + 2.',
-          correctAnswer: '5',
-          explanation: 'Three plus two equals five.',
-          imageKeyword: 'trap',
-        }),
-      });
+    mockExternalResponses([
+      narrativeResponse({ prompt: 'Solve the ward: 5 x 4.' }),
+      narrativeResponse({
+        prompt: 'The ward snaps shut. Escape by solving 3 + 2.',
+        imageKeyword: 'trap',
+      }),
+    ]);
 
     const start = await request(app)
       .post('/api/quests/start')
@@ -167,19 +155,10 @@ describe('Quest engine endpoints', () => {
 
   it('progresses normally after a correct answer', async () => {
     const child = await createChild();
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [{ meanings: [{ definitions: [{ definition: 'A hidden word meaning.' }] }] }],
-    });
-    jest.spyOn(openrouter, 'callOpenRouter')
-      .mockResolvedValueOnce({
-        success: true,
-        message: gameMasterResponse({ prompt: 'Name the hidden key.', correctAnswer: 'silver' }),
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        message: gameMasterResponse({ prompt: 'The path opens.', correctAnswer: 'north' }),
-      });
+    mockExternalResponses([
+      narrativeResponse({ prompt: 'Name the hidden key.' }),
+      narrativeResponse({ prompt: 'The path opens.' }),
+    ]);
 
     const start = await request(app)
       .post('/api/quests/start')
@@ -202,17 +181,10 @@ describe('Quest engine endpoints', () => {
   it('completes on the fifth answer and rejects a sixth answer', async () => {
     const child = await createChild();
     let generation = 0;
-    jest.spyOn(openrouter, 'callOpenRouter').mockImplementation(async () => {
-      const current = generation;
-      generation += 1;
-      return {
-        success: true,
-        message: gameMasterResponse({
-          prompt: `Challenge ${current}`,
-          correctAnswer: `answer-${current}`,
-        }),
-      };
-    });
+    mockExternalResponses(Array.from({ length: 5 }, (_, index) => ({
+      story: `Challenge ${index}`,
+      imageKeyword: 'cavern',
+    })));
 
     const start = await request(app)
       .post('/api/quests/start')

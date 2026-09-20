@@ -11,3 +11,8 @@
 - Keeping Unsplash credentials behind a child-authenticated backend route avoids exposing the access key in the browser and gives the game a stable fallback image path.
 - The correction response must be held separately from the active question so incorrect-answer feedback can pause narrative progression before the recovery question replaces it.
 - Persisting the active quest snapshot in sessionStorage allows `/quest` to survive navigation while the backend remains authoritative for answer validation and the five-question limit.
+
+## Turn 7
+- Keeping Gemini responsible only for narrative metadata prevents educational correctness from depending on model output.
+- Gemini's `responseMimeType: application/json` is configured on the generative model and should be paired with application-level validation for story length and allowed fields.
+- Provider migrations require updating integration mocks and stale architecture documentation together; otherwise legacy tests can falsely report failures after a correct pivot.

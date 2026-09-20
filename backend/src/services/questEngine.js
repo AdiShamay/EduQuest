@@ -1,6 +1,5 @@
-const openrouter = require('./openrouter');
-
 const TOTAL_QUESTIONS = 5;
+const GEMINI_MODEL = 'gemini-1.5-flash';
 const WORD_BANKS = {
   Easy: ['brave', 'happy', 'small', 'quick', 'bright', 'kind'],
   Medium: ['ancient', 'curious', 'fragile', 'generous', 'mysterious', 'reluctant'],
@@ -9,19 +8,6 @@ const WORD_BANKS = {
 
 function countWords(value) {
   return value.trim().split(/\s+/).filter(Boolean).length;
-}
-
-function parseNarrativeResponse(message) {
-  let parsed;
-  try {
-    parsed = JSON.parse(message);
-  } catch (error) {
-    throw new Error('The magic portal returned invalid narrative data');
-  }
-  if (typeof parsed?.story !== 'string' || countWords(parsed.story) > 30 || typeof parsed?.imageKeyword !== 'string' || !parsed.imageKeyword.trim()) {
-    throw new Error('The magic portal returned invalid narrative data');
-  }
-  return { story: parsed.story, imageKeyword: parsed.imageKeyword.trim().split(/\s+/)[0] };
 }
 
 function randomItem(items) {
@@ -61,28 +47,26 @@ function generateMathQuestion(difficulty) {
 }
 
 async function fetchDefinition(word) {
-  const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
-  if (!response.ok) throw new Error('The dictionary portal is resting, try again!');
+  const targetWord = word;
+  const response = await fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(targetWord)}&md=d&max=1`);
   const data = await response.json();
-  const meaning = data?.[0]?.meanings?.[0];
-  const definition = meaning?.definitions?.[0]?.definition;
-  const synonym = meaning?.synonyms?.[0] || meaning?.definitions?.[0]?.synonyms?.[0];
-  if (!definition && !synonym) throw new Error('The dictionary returned no usable meaning');
-  return { definition, synonym };
+  if (!data || data.length === 0 || !data[0].defs) throw new Error('Definition not found');
+  const definition = data[0].defs[0].replace(/^[a-zA-Z]+\t/, '');
+  return { definition };
 }
 
 async function generateEnglishQuestion(difficulty) {
   const words = WORD_BANKS[difficulty];
   const word = randomItem(words);
-  const { definition, synonym } = await fetchDefinition(word);
-  const correctAnswer = synonym || definition;
+  const { definition } = await fetchDefinition(word);
+  const correctAnswer = definition;
   const distractors = words.filter((candidate) => candidate !== word).slice(0, 3);
   return {
     type: 'english',
     word,
-    prompt: `What is the ${synonym ? 'synonym' : 'definition'} of ${word}?`,
+    prompt: `What is the definition of ${word}?`,
     correctAnswer,
-    explanation: synonym ? `${word} can mean ${synonym}.` : `${word} means ${definition}.`,
+    explanation: `${word} means ${definition}.`,
     options: [correctAnswer, ...distractors].sort(() => Math.random() - 0.5),
   };
 }
@@ -95,15 +79,28 @@ async function generateChallenge({ subject, difficulty, branch = 'opening', prev
   const educationalQuestion = await generateEducationalQuestion(subject, difficulty);
   const context = branch === 'setback' ? `The child answered incorrectly with ${previousAnswer}. Describe a short setback and recovery scene.` : 'Describe a short normal progression scene.';
   const prompt = `Wrap this ${subject} ${difficulty} challenge in a dark-fantasy narrative. Challenge: ${educationalQuestion.prompt}. ${context}`;
-  let result;
-  try {
-    result = await openrouter.callOpenRouter({ prompt });
-    if (!result.success) throw new Error(result.message);
-  } catch (error) {
-    console.error('Raw OpenRouter Error:', error.message || error);
-    throw error;
+  const narrative = await generateNarrative(prompt);
+  return { ...narrative, question: educationalQuestion };
+}
+
+async function generateNarrative(promptText, apiKey = process.env.GEMINI_API_KEY) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: `${promptText}\nReturn JSON with only story and imageKeyword. Keep story under 30 words.` }] }],
+      generationConfig: { responseMimeType: 'application/json' },
+    }),
+  });
+  if (!response.ok) throw new Error('Gemini API failed');
+  const data = await response.json();
+  const resultText = data.candidates[0].content.parts[0].text;
+  const parsedJSON = JSON.parse(resultText);
+  if (!parsedJSON.story || !parsedJSON.imageKeyword || countWords(parsedJSON.story) > 30) {
+    throw new Error('Gemini returned invalid narrative data');
   }
-  return { ...parseNarrativeResponse(result.message), question: educationalQuestion };
+  return { story: parsedJSON.story, imageKeyword: parsedJSON.imageKeyword };
 }
 
 function hiddenQuestion(challenge, isRecovery) {
@@ -126,4 +123,4 @@ function publicQuestion(question) {
   return { prompt: question.narrativePrompt, type: question.questionType, options: question.options || [], imageKeyword: question.imageKeyword, story: question.story };
 }
 
-module.exports = { TOTAL_QUESTIONS, WORD_BANKS, generateChallenge, generateEnglishQuestion, generateMathQuestion, hiddenQuestion, publicQuestion };
+module.exports = { TOTAL_QUESTIONS, WORD_BANKS, generateChallenge, generateEnglishQuestion, generateMathQuestion, generateNarrative, hiddenQuestion, publicQuestion };

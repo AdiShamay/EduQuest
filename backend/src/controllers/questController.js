@@ -124,7 +124,7 @@ async function startQuest(req, res) {
         },
       }, false)
     );
-    const quest = await Quest.create({
+    const newQuest = new Quest({
       childId: req.user._id,
       subject,
       difficulty,
@@ -133,10 +133,11 @@ async function startQuest(req, res) {
       currentQuestionIndex: 0,
       completed: false,
     });
+    await newQuest.save();
 
     return res.status(201).json({
-      quest: { id: quest._id.toString(), subject, difficulty },
-      question: publicQuestion(quest.questions[0]),
+      quest: { id: newQuest._id.toString(), subject, difficulty },
+      question: publicQuestion(newQuest.questions[0]),
       progress: { current: 1, total: TOTAL_QUESTIONS },
     });
   } catch (error) {

@@ -3,7 +3,7 @@
 ## Turn 1: Infrastructure & Boilerplate
 - Backend initialized with Express and Jest.
 - Health endpoint and MongoDB config are in place and passing tests.
-- OpenRouter utility enforces an explicit :free model, uses compact JSON prompt constraints, and provides graceful fallback messaging.
+- Gemini narrative utility uses strict JSON response configuration and provides graceful fallback messaging.
 - Environment variables documented in .env.example.
 - Frontend scaffolding is complete with Vite, React, Tailwind, React Router, and Recharts dependencies.
 
@@ -18,7 +18,7 @@
 - Child-only quest initialization supports Math or English and Easy, Medium, or Hard difficulty.
 - Quest progression enforces exactly five questions and rejects answers after completion.
 - Correct answers use normal progression; incorrect answers return the correction and branch into setback/recovery content.
-- OpenRouter responses are parsed as compact JSON with a maximum 30-word story and one image keyword.
+- Gemini responses are parsed as compact JSON with a maximum 30-word story and one image keyword.
 - Quest tests cover initialization, authorization, branching, progression, completion, and clean MongoDB teardown.
 
 ## Status
@@ -39,8 +39,20 @@
 - Next milestone: perform the final manual child login, quest setup, correct-answer, incorrect-answer, recovery, and completion workflow check.
 
 ## Turn 6: Architecture Refactor (Quest Engine Pivot)
+- Status: complete and verified.
 - Strategic pivot: Removed LLM dependency for question generation to eliminate parsing errors and 429 rate-limit bottlenecks.
 - Backend is now strictly responsible for generating Math questions (dynamic arithmetic logic based on difficulty) and English questions.
 - English questions are constructed programmatically by selecting a word from local difficulty banks and making a live API call to the Free Dictionary API to fetch definitions/synonyms.
 - English questions implement a 4-option multiple-choice format; Math questions implement a direct typed input field.
-- OpenRouter LLM is now strictly limited to generating the narrative wrapper (30 words max) and a single image keyword per turn.
+- Google Gemini is strictly limited to generating the narrative wrapper (30 words max) and a single image keyword per turn.
+- Quest schemas and public API responses expose question type and English options without exposing the correct answer.
+- Frontend quest controls now render typed Math input or exactly four English choices based on the backend question type.
+- Verification: full backend Jest passed 26 tests across 9 suites with forced process exit; frontend Vitest passed 8 tests.
+
+## Turn 7: Gemini Narrative Provider Migration
+- Status: complete and verified.
+- Google Gemini API using `gemini-1.5-flash` now supplies only the narrative wrapper and image keyword.
+- Gemini requests use `responseMimeType: application/json` and reject educational fields or narratives over 30 words.
+- Local Math generation, Free Dictionary-backed English generation, four-option choices, and typed Math input remain unchanged.
+- OpenRouter integration and obsolete tests were removed; `GEMINI_API_KEY` is now the documented provider credential.
+- Verification: backend Jest passed 25 tests across 9 suites with forced process exit; frontend Vitest passed 8 tests; frontend production build passed; lint passed with one non-blocking React effect warning.
