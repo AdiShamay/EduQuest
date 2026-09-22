@@ -9,9 +9,10 @@ function calculateMathQuestion(operator, left, right) {
   const answer = operator === '+' ? left + right : operator === '-' ? left - right : operator === 'x' ? left * right : left / right;
   return {
     type: 'math',
-    prompt: `Solve: ${left} ${operator} ${right}`,
+    prompt: `Solve: ${left} ${operator}${right}`,
     correctAnswer: String(answer),
-    explanation: `${left} ${operator} ${right} equals ${answer}.`,
+    // Removed the trailing period to prevent double punctuation
+    explanation: `${left}${operator} ${right} equals${answer}`,
     options: [],
   };
 }
@@ -44,25 +45,41 @@ async function fetchDefinition(word) {
   const data = await response.json();
   if (!data || data.length === 0 || !data[0].defs) throw new Error(`Definition not found for word: ${word}`);
   
-  // Strip the part-of-speech prefix returned by Datamuse
+  // Extract definition and remove part-of-speech tag
   const definition = data[0].defs[0].replace(/^[a-zA-Z]+\t/, '');
   return { definition };
 }
 
 async function generateEnglishQuestion(difficulty) {
   const words = WORD_BANKS[difficulty];
-  const word = words[Math.floor(Math.random() * words.length)];
-  const { definition } = await fetchDefinition(word);
-  const correctAnswer = definition;
-  const distractors = words.filter((candidate) => candidate !== word).slice(0, 3).map(w => `The meaning of ${w}`);
+  
+  // Select 4 unique random words (1 correct, 3 distractors)
+  const shuffled = [...words].sort(() => Math.random() - 0.5);
+  const selectedWords = shuffled.slice(0, 4);
+  const targetWord = selectedWords[0];
+  
+  // Fetch definitions for all 4 words concurrently for maximum performance
+  const definitions = await Promise.all(
+    selectedWords.map(async (word) => {
+      try {
+        const { definition } = await fetchDefinition(word);
+        return definition;
+      } catch (error) {
+        return `The meaning of the word ${word}`;
+      }
+    })
+  );
+  
+  const correctAnswer = definitions[0];
   
   return {
     type: 'english',
-    word,
-    prompt: `What is the definition of the word: ${word}?`,
+    word: targetWord,
+    prompt: `What is the definition of the word: ${targetWord}?`,
     correctAnswer,
-    explanation: `${word} means${definition}.`,
-    options: [correctAnswer, ...distractors].sort(() => Math.random() - 0.5),
+    // Formatted cleanly without trailing periods to prevent double punctuation
+    explanation: `The word '${targetWord}' is defined as:${correctAnswer}`,
+    options: definitions.sort(() => Math.random() - 0.5),
   };
 }
 
@@ -70,8 +87,8 @@ async function generateEducationalQuestion(subject, difficulty) {
   return subject === 'English' ? generateEnglishQuestion(difficulty) : generateMathQuestion(difficulty);
 }
 
-// Fetches all narrative segments in a single batch request
-async function generateStoryBatch(subject, difficulty, retries = 3) {
+// Fetch 5-part narrative with 6 retries for high availability
+async function generateStoryBatch(subject, difficulty, retries = 6) {
   require('dotenv').config();
   let apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("CRITICAL: GEMINI_API_KEY is missing from your .env file!");
@@ -79,12 +96,12 @@ async function generateStoryBatch(subject, difficulty, retries = 3) {
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
   
-  const promptText = `You are a game master. Create a continuous 5-part fantasy adventure story about a hero embarking on a quest.
+  const promptText = `You are a game master. Create a continuous 5-part dark fantasy adventure story about a hero embarking on a quest.
   IMPORTANT RULES:
   - Return ONLY a JSON array containing exactly 5 objects.
   - Each object must have exactly two keys: "story" and "imageKeyword".
   - "story": A short continuous narrative segment (max 30 words). Part 1: Intro, Parts 2-4: The journey/obstacles, Part 5: The climax/conclusion.
-  - "imageKeyword": A single word from the story to search for a background image (e.g., "castle", "forest", "dragon", "dungeon").
+  - "imageKeyword": A single word to search for a background image (e.g., "castle", "forest", "dragon", "dungeon").
   - STRICT RULE: DO NOT include numbers, math equations, specific puzzles, or vocabulary definitions in the story text. The story must only describe the atmospheric adventure, environments, and heroic actions.
   - Do NOT include any markdown wrappers like \`\`\`json. Return pure JSON.`;
 
@@ -99,9 +116,12 @@ async function generateStoryBatch(subject, difficulty, retries = 3) {
     });
 
     if (!response.ok) {
-      if (response.status === 503 && i < retries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        continue;
+      if (response.status === 503) {
+        if (i < retries - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
+        throw new Error("Unable to start quest. The servers are currently overloaded, please try again.");
       }
       const errorText = await response.text();
       throw new Error(`Google API Rejected: ${response.status} - ${errorText}`);

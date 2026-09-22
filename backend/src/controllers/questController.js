@@ -110,10 +110,8 @@ async function startQuest(req, res) {
   }
 
   try {
-    // Fetch the full 5-part narrative in a single batch request
     const storyParts = await generateStoryBatch(subject, difficulty);
     
-    // Generate exactly 5 local educational questions and merge them with the narrative segments
     const questions = [];
     for (let i = 0; i < TOTAL_QUESTIONS; i++) {
       const edQ = await generateEducationalQuestion(subject, difficulty);
@@ -142,7 +140,8 @@ async function startQuest(req, res) {
     });
   } catch (error) {
     console.error('CRITICAL ERROR IN START QUEST:', error);
-    return res.status(500).json({ message: 'Unable to start quest', error: error.message || error });
+    // Forward the specific error message to the frontend payload
+    return res.status(500).json({ message: error.message || 'Unable to start quest. Please try again.' });
   }
 }
 
@@ -184,7 +183,6 @@ async function answerQuest(req, res) {
       });
     }
 
-    // Advance to the next pre-generated question without external API calls
     quest.currentQuestionIndex += 1;
     await quest.save();
 
