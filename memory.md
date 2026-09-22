@@ -57,3 +57,10 @@
 - We replaced the Free Dictionary API with the Datamuse API for stability, and replaced the Gemini SDK with a direct REST fetch to resolve 404 and SDK-related integration errors.
 - OpenRouter integration and obsolete tests were removed; `GEMINI_API_KEY` is now the documented provider credential.
 - Verification: backend Jest passed 25 tests across 9 suites with forced process exit; frontend Vitest passed 8 tests; frontend production build passed; lint passed with one non-blocking React effect warning.
+
+## Turn 8: Ultimate Performance & Stability Optimization
+- Status: complete and verified.
+- Upgraded model to `gemini-2.5-flash` to resolve deprecated 404 errors.
+- Added automatic retry logic in the engine to seamlessly handle Google 503 Overloaded states without crashing the server.
+- Fixed a frontend race condition where reaching 5/5 questions overrode the feedback dialog on incorrect answers.
+- **Major Architectural Pivot (Batch Generation):** Quest latency has been reduced to zero. Instead of calling Gemini for every question, `startQuest` now makes a SINGLE call to Gemini requesting a JSON array of 5 narrative parts. All 5 educational questions are generated instantly via local logic, merged with the 5-part narrative, and cached in MongoDB. `answerQuest` is now completely instantaneous and requires zero API calls.

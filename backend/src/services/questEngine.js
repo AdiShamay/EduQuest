@@ -44,6 +44,7 @@ async function fetchDefinition(word) {
   const data = await response.json();
   if (!data || data.length === 0 || !data[0].defs) throw new Error(`Definition not found for word: ${word}`);
   
+  // Strip the part-of-speech prefix returned by Datamuse
   const definition = data[0].defs[0].replace(/^[a-zA-Z]+\t/, '');
   return { definition };
 }
@@ -60,7 +61,7 @@ async function generateEnglishQuestion(difficulty) {
     word,
     prompt: `What is the definition of the word: ${word}?`,
     correctAnswer,
-    explanation: `${word} means ${definition}.`,
+    explanation: `${word} means${definition}.`,
     options: [correctAnswer, ...distractors].sort(() => Math.random() - 0.5),
   };
 }
@@ -69,14 +70,24 @@ async function generateEducationalQuestion(subject, difficulty) {
   return subject === 'English' ? generateEnglishQuestion(difficulty) : generateMathQuestion(difficulty);
 }
 
-async function generateNarrative(promptText, retries = 3) {
+// Fetches all narrative segments in a single batch request
+async function generateStoryBatch(subject, difficulty, retries = 3) {
   require('dotenv').config();
   let apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("CRITICAL: GEMINI_API_KEY is missing from your .env file!");
   apiKey = apiKey.trim();
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
   
+  const promptText = `You are a game master. Create a continuous 5-part fantasy adventure story about a hero embarking on a quest.
+  IMPORTANT RULES:
+  - Return ONLY a JSON array containing exactly 5 objects.
+  - Each object must have exactly two keys: "story" and "imageKeyword".
+  - "story": A short continuous narrative segment (max 30 words). Part 1: Intro, Parts 2-4: The journey/obstacles, Part 5: The climax/conclusion.
+  - "imageKeyword": A single word from the story to search for a background image (e.g., "castle", "forest", "dragon", "dungeon").
+  - STRICT RULE: DO NOT include numbers, math equations, specific puzzles, or vocabulary definitions in the story text. The story must only describe the atmospheric adventure, environments, and heroic actions.
+  - Do NOT include any markdown wrappers like \`\`\`json. Return pure JSON.`;
+
   for (let i = 0; i < retries; i++) {
     const response = await fetch(url, {
       method: 'POST',
@@ -88,9 +99,7 @@ async function generateNarrative(promptText, retries = 3) {
     });
 
     if (!response.ok) {
-      // אם השרת של גוגל עמוס (503), נמתין 2 שניות וננסה שוב אוטומטית לפני שנקרוס
       if (response.status === 503 && i < retries - 1) {
-        console.log(`[Gemini API] 503 Overloaded. Retrying in 2 seconds... (Attempt ${i + 1} of ${retries})`);
         await new Promise(resolve => setTimeout(resolve, 2000));
         continue;
       }
@@ -99,33 +108,18 @@ async function generateNarrative(promptText, retries = 3) {
     }
 
     const data = await response.json();
-    if (!data.candidates || !data.candidates[0].content) {
-      throw new Error("Google API returned an empty or invalid response.");
-    }
-
     const rawText = data.candidates[0].content.parts[0].text;
     const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanText);
+    
+    const storyArray = JSON.parse(cleanText);
+    if (!Array.isArray(storyArray) || storyArray.length !== 5) {
+      throw new Error("Gemini did not return exactly 5 story segments");
+    }
+    return storyArray;
   }
 }
 
-async function generateChallenge({ subject, difficulty, branch = 'opening', previousAnswer }) {
-  const educationalQuestion = await generateEducationalQuestion(subject, difficulty);
-  const context = branch === 'setback' ? `The child answered incorrectly with ${previousAnswer}. Describe a short setback and recovery scene.` : 'Describe a short normal progression scene.';
-  
-  const prompt = `Wrap this ${subject} ${difficulty} challenge in a dark-fantasy narrative. 
-  Challenge: ${educationalQuestion.prompt}. 
-  Context: ${context}.
-  IMPORTANT: You MUST return a valid JSON object with exactly two keys:
-  1. "story": A short 30-word narrative text.
-  2. "imageKeyword": A single word to search for a background image (e.g., "castle", "forest", "cave").
-  Do NOT include any markdown formatting or extra text. Output ONLY the JSON object.`;
-  
-  const narrative = await generateNarrative(prompt);
-  return { ...narrative, question: educationalQuestion };
-}
-
-function hiddenQuestion(challenge, isRecovery) {
+function hiddenQuestion(challenge) {
   return {
     narrativePrompt: challenge.question.prompt,
     questionType: challenge.question.type,
@@ -134,7 +128,6 @@ function hiddenQuestion(challenge, isRecovery) {
     userAnswer: 'unanswered',
     correctAnswer: challenge.question.correctAnswer,
     passed: false,
-    isRecovery,
     imageKeyword: challenge.imageKeyword,
     story: challenge.story,
     explanation: challenge.question.explanation,
@@ -145,4 +138,4 @@ function publicQuestion(question) {
   return { prompt: question.narrativePrompt, type: question.questionType, options: question.options || [], imageKeyword: question.imageKeyword, story: question.story };
 }
 
-module.exports = { TOTAL_QUESTIONS, WORD_BANKS, generateChallenge, generateEnglishQuestion, generateMathQuestion, generateNarrative, hiddenQuestion, publicQuestion };
+module.exports = { TOTAL_QUESTIONS, WORD_BANKS, generateStoryBatch, generateEducationalQuestion, hiddenQuestion, publicQuestion };

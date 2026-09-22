@@ -137,6 +137,7 @@ function ActiveQuest() {
   const [loading, setLoading] = useState(false)
   const [completed, setCompleted] = useState(false)
 
+  // Fetch dynamic background image
   useEffect(() => {
     if (!questState?.question?.imageKeyword) return
     requestJson(`/api/images/${encodeURIComponent(questState.question.imageKeyword)}`, {}, session.token)
@@ -157,15 +158,27 @@ function ActiveQuest() {
         body: JSON.stringify({ questId: questState.quest.id, answer }),
       }, session.token)
       setAnswer('')
+      
+      // Handle incorrect answers and trigger the feedback dialog
+      if (!response.isCorrect) {
+        setFeedback(response.feedback)
+        
+        // Cache the completion status if this was the final question
+        if (response.completed) {
+          setQuestState((current) => ({ ...current, pendingCompletion: true }))
+        } else {
+          setQuestState((current) => ({ ...current, pendingNextQuestion: response.nextQuestion, pendingProgress: response.progress }))
+        }
+        return
+      }
+
+      // Handle correct answers on the final question
       if (response.completed) {
         setCompleted(true)
         return
       }
-      if (!response.isCorrect) {
-        setFeedback(response.feedback)
-        setQuestState((current) => ({ ...current, pendingNextQuestion: response.nextQuestion, pendingProgress: response.progress }))
-        return
-      }
+
+      // Proceed to the next question
       setQuestState((current) => ({ ...current, question: response.nextQuestion, progress: response.progress }))
     } catch (submitError) {
       setError(submitError.message)
@@ -179,6 +192,14 @@ function ActiveQuest() {
   }
 
   function continueAfterFeedback() {
+    // Navigate to completion screen if the feedback was for the final question
+    if (questState.pendingCompletion) {
+      setCompleted(true)
+      setFeedback(null)
+      return
+    }
+    
+    // Otherwise, load the next question in the sequence
     setQuestState((current) => ({ ...current, question: current.pendingNextQuestion, progress: current.pendingProgress, pendingNextQuestion: undefined, pendingProgress: undefined }))
     setFeedback(null)
   }

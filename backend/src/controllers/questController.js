@@ -2,7 +2,8 @@ const Quest = require('../models/Quest');
 const User = require('../models/User');
 const {
   TOTAL_QUESTIONS,
-  generateChallenge,
+  generateStoryBatch,
+  generateEducationalQuestion,
   hiddenQuestion,
   publicQuestion,
 } = require('../services/questEngine');
@@ -109,20 +110,20 @@ async function startQuest(req, res) {
   }
 
   try {
-    const challenge = await generateChallenge({ subject, difficulty });
-    const questions = Array.from({ length: TOTAL_QUESTIONS }, (_, index) =>
-      index === 0 ? hiddenQuestion(challenge, false) : hiddenQuestion({
-        story: 'The next challenge awaits.',
-        imageKeyword: 'dungeon',
-        question: {
-          type: 'math',
-          prompt: 'Pending challenge',
-          correctAnswer: 'pending',
-          explanation: 'The next challenge has not been revealed yet.',
-          options: [],
-        },
-      }, false)
-    );
+    // Fetch the full 5-part narrative in a single batch request
+    const storyParts = await generateStoryBatch(subject, difficulty);
+    
+    // Generate exactly 5 local educational questions and merge them with the narrative segments
+    const questions = [];
+    for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+      const edQ = await generateEducationalQuestion(subject, difficulty);
+      questions.push(hiddenQuestion({
+        story: storyParts[i].story,
+        imageKeyword: storyParts[i].imageKeyword,
+        question: edQ
+      }));
+    }
+
     const newQuest = new Quest({
       childId: req.user._id,
       subject,
@@ -183,20 +184,13 @@ async function answerQuest(req, res) {
       });
     }
 
-    const branch = isCorrect ? 'progress' : 'setback';
-    const challenge = await generateChallenge({
-      subject: quest.subject,
-      difficulty: quest.difficulty,
-      branch,
-      previousAnswer: answer,
-    });
+    // Advance to the next pre-generated question without external API calls
     quest.currentQuestionIndex += 1;
-    quest.questions[quest.currentQuestionIndex] = hiddenQuestion(challenge, !isCorrect);
     await quest.save();
 
     return res.status(200).json({
       isCorrect,
-      branch,
+      branch: isCorrect ? 'progress' : 'setback',
       ...(isCorrect ? {} : {
         feedback: {
           correctAnswer: currentQuestion.correctAnswer,

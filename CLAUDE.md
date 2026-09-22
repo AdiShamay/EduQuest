@@ -7,20 +7,15 @@ You are an expert agentic software engineer collaborating on "EduQuest," an inte
 - **Frontend:** React.js (Vite), Tailwind CSS (styling), React-Router-DOM (routing), Recharts (graphs).
 - **Backend:** Node.js with Express.js.
 - **Authentication:** Custom JWT (JSON Web Tokens) with bcrypt. Role-based access (`parent` vs `child`).
-- **State/Storage:** MongoDB with Mongoose. Schema Architecture: Use an Embedded Documents approach for quests. Maintain 'Users' and 'Quests' collections. Support a one-to-many relationship where a parent can have multiple children. Child user documents MUST contain a 'parentId' reference. Each 'Quest' document MUST contain an embedded array of exactly 5 question objects (including the narrative prompt, the user's answer, the correct answer, and a pass/fail boolean). These 5 objects seamlessly include both standard progression and branched "recovery" questions.
+- **State/Storage:** MongoDB with Mongoose. Schema Architecture: Use an Embedded Documents approach for quests. Maintain 'Users' and 'Quests' collections. Support a one-to-many relationship where a parent can have multiple children. Child user documents MUST contain a 'parentId' reference. Each 'Quest' document MUST contain an embedded array of exactly 5 question objects (including the narrative prompt, the user's answer, the correct answer, and a pass/fail boolean). These 5 objects follow a pre-generated linear story sequence, displaying an educational feedback dialog on incorrect answers before advancing to the next pre-fetched stage.
 - **APIs:** Google Gemini API, Unsplash API, Datamuse API.
   - **CRITICAL ARCHITECTURE NOTE:** Google Gemini is responsible only for generating the short narrative wrapper and image keyword. Math and English educational questions are generated locally by the backend. For English quests, the backend fetches a vocabulary word and its meaning from the Datamuse API and constructs the question programmatically.
   
-## 2.5 Local Question Generation Engine (CRITICAL)
+## 2.5 Local Question Generation Engine & Batch Narrative (CRITICAL)
 Do NOT use the LLM to generate educational questions. The backend must generate them locally:
-- **Math Engine (Typed Input):**
-  - **Easy:** Addition and subtraction with numbers from 1 to 20.
-  - **Medium:** Addition and subtraction up to 100. Multiplication up to 10 (times tables).
-  - **Hard:** Addition and subtraction up to 1000. Multiplication up to 10. Division without remainder (e.g., 56 / 7).
-- **English Engine (Multiple Choice with Datamuse API):**
-  - Create 3 static arrays (Word Banks) in the backend containing only the target English words for Easy, Medium, and Hard.
-  - At runtime, the backend randomly selects a word from the appropriate difficulty bank and makes a live HTTP request to the Datamuse API.
-  - The backend extracts the definition from the API response and programmatically constructs a question string (e.g., "What is the definition of X?") along with 4 multiple-choice options (1 correct, 3 random distractors from the word bank).
+- **Math Engine (Typed Input):** Arithmetic logic based on difficulty.
+- **English Engine (Multiple Choice with Datamuse API):** Uses local word banks and fetches definitions at runtime via Datamuse API.
+- **Batch Narrative Architecture:** To eliminate latency, the Gemini LLM is called exactly ONCE during `startQuest`. It generates a JSON array of 5 narrative segments (Part 1: intro, Parts 2-4: progression, Part 5: conclusion). The backend generates all 5 educational questions instantly, merges them with the 5 narrative segments, and saves them to the DB. The `answerQuest` endpoint requires ZERO API calls and merely validates the answer and advances the array index.
 
 ## 3. Mandatory Workflow (Plan First, Code Later)
 Your autonomy is strictly limited. Follow this spiral development workflow:

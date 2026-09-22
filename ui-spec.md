@@ -20,7 +20,7 @@
 - **The Challenge UI:** Dynamic input based on the subject. 
   - For **Math** quests: A text/number input field where the child explicitly types their answer.
   - For **English** quests: A multiple-choice interface with exactly 4 buttons (1 correct answer, 3 distractors pulled from the same difficulty word bank).
-- **Quest Progression:** A clear progress indicator (e.g., "Question X of 5"). The quest always ends after exactly 5 answered questions. Mistakes trigger an educational correction overlay, log the error, and branch the narrative into a "setback/recovery" scene, which serves as the context for the next question in the 5-question sequence.
+- **Quest Progression:** A clear progress indicator (e.g., "Question X of 5"). The quest always ends after exactly 5 answered questions. Mistakes trigger an educational correction overlay and log the error. Upon acknowledging the feedback, the game instantly advances to the next scene in the pre-generated 5-part narrative sequence.
 
 ## 4. Feedback & Error Handling (Crucial)
 - **Explicit Correction:** If the child answers incorrectly, the system MUST pause the narrative and display a clear, educational error message (e.g., "Incorrect! 5 x 4 is 20, not 15.") before generating the next "recovery" branch of the story.
