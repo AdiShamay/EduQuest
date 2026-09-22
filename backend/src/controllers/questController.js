@@ -43,7 +43,6 @@ async function getAnalytics(req, res) {
     right[1] - left[1]
   )[0]?.[0] || 'None';
 
-  // Aggregate the same quest records into the two chart shapes so the UI never needs to infer metrics.
   const monthlySuccessByWeek = quests.reduce((weeks, quest) => {
     const week = weekLabel(quest.createdAt);
     const entry = weeks.find((item) => item.week === week);
@@ -141,71 +140,76 @@ async function startQuest(req, res) {
       progress: { current: 1, total: TOTAL_QUESTIONS },
     });
   } catch (error) {
-    console.error('CRITICAL 500 ERROR DETAILS:', error);
+    console.error('CRITICAL ERROR IN START QUEST:', error);
     return res.status(500).json({ message: 'Unable to start quest', error: error.message || error });
   }
 }
 
 async function answerQuest(req, res) {
-  const { questId, answer } = req.body;
+  try {
+    const { questId, answer } = req.body;
 
-  if (!questId || typeof answer !== 'string') {
-    return res.status(400).json({ message: 'Quest ID and answer are required' });
-  }
+    if (!questId || typeof answer !== 'string') {
+      return res.status(400).json({ message: 'Quest ID and answer are required' });
+    }
 
-  const quest = await Quest.findOne({ _id: questId, childId: req.user._id });
-  if (!quest) {
-    return res.status(404).json({ message: 'Quest not found' });
-  }
-  if (quest.completed || quest.answeredQuestions >= TOTAL_QUESTIONS) {
-    return res.status(409).json({ message: 'Quest is already complete' });
-  }
+    const quest = await Quest.findOne({ _id: questId, childId: req.user._id });
+    if (!quest) {
+      return res.status(404).json({ message: 'Quest not found' });
+    }
+    if (quest.completed || quest.answeredQuestions >= TOTAL_QUESTIONS) {
+      return res.status(409).json({ message: 'Quest is already complete' });
+    }
 
-  const currentQuestion = quest.questions[quest.currentQuestionIndex];
-  const isCorrect = answer.trim().toLowerCase() === currentQuestion.correctAnswer.trim().toLowerCase();
-  currentQuestion.userAnswer = answer;
-  currentQuestion.passed = isCorrect;
-  quest.answeredQuestions += 1;
+    const currentQuestion = quest.questions[quest.currentQuestionIndex];
+    const isCorrect = answer.trim().toLowerCase() === currentQuestion.correctAnswer.trim().toLowerCase();
+    currentQuestion.userAnswer = answer;
+    currentQuestion.passed = isCorrect;
+    quest.answeredQuestions += 1;
 
-  if (quest.answeredQuestions === TOTAL_QUESTIONS) {
-    quest.completed = true;
+    if (quest.answeredQuestions === TOTAL_QUESTIONS) {
+      quest.completed = true;
+      await quest.save();
+      return res.status(200).json({
+        isCorrect,
+        completed: true,
+        progress: { current: TOTAL_QUESTIONS, total: TOTAL_QUESTIONS },
+        ...(isCorrect ? {} : {
+          feedback: {
+            correctAnswer: currentQuestion.correctAnswer,
+            explanation: currentQuestion.explanation,
+          },
+        }),
+      });
+    }
+
+    const branch = isCorrect ? 'progress' : 'setback';
+    const challenge = await generateChallenge({
+      subject: quest.subject,
+      difficulty: quest.difficulty,
+      branch,
+      previousAnswer: answer,
+    });
+    quest.currentQuestionIndex += 1;
+    quest.questions[quest.currentQuestionIndex] = hiddenQuestion(challenge, !isCorrect);
     await quest.save();
+
     return res.status(200).json({
       isCorrect,
-      completed: true,
-      progress: { current: TOTAL_QUESTIONS, total: TOTAL_QUESTIONS },
+      branch,
       ...(isCorrect ? {} : {
         feedback: {
           correctAnswer: currentQuestion.correctAnswer,
           explanation: currentQuestion.explanation,
         },
       }),
+      nextQuestion: publicQuestion(quest.questions[quest.currentQuestionIndex]),
+      progress: progressFor(quest),
     });
+  } catch (error) {
+    console.error('CRITICAL ERROR IN ANSWER QUEST:', error);
+    return res.status(500).json({ message: 'The magic portal is resting. Try again.', error: error.message });
   }
-
-  const branch = isCorrect ? 'progress' : 'setback';
-  const challenge = await generateChallenge({
-    subject: quest.subject,
-    difficulty: quest.difficulty,
-    branch,
-    previousAnswer: answer,
-  });
-  quest.currentQuestionIndex += 1;
-  quest.questions[quest.currentQuestionIndex] = hiddenQuestion(challenge, !isCorrect);
-  await quest.save();
-
-  return res.status(200).json({
-    isCorrect,
-    branch,
-    ...(isCorrect ? {} : {
-      feedback: {
-        correctAnswer: currentQuestion.correctAnswer,
-        explanation: currentQuestion.explanation,
-      },
-    }),
-    nextQuestion: publicQuestion(quest.questions[quest.currentQuestionIndex]),
-    progress: progressFor(quest),
-  });
 }
 
 module.exports = { answerQuest, getAnalytics, startQuest };
