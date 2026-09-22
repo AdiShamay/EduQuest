@@ -8,8 +8,8 @@ You are an expert agentic software engineer collaborating on "EduQuest," an inte
 - **Backend:** Node.js with Express.js.
 - **Authentication:** Custom JWT (JSON Web Tokens) with bcrypt. Role-based access (`parent` vs `child`).
 - **State/Storage:** MongoDB with Mongoose. Schema Architecture: Use an Embedded Documents approach for quests. Maintain 'Users' and 'Quests' collections. Support a one-to-many relationship where a parent can have multiple children. Child user documents MUST contain a 'parentId' reference. Each 'Quest' document MUST contain an embedded array of exactly 5 question objects (including the narrative prompt, the user's answer, the correct answer, and a pass/fail boolean). These 5 objects seamlessly include both standard progression and branched "recovery" questions.
-- **APIs:** Google Gemini API, Unsplash API, Free Dictionary API.
-  - **CRITICAL ARCHITECTURE NOTE:** Google Gemini is responsible only for generating the short narrative wrapper and image keyword. Math and English educational questions are generated locally by the backend. For English quests, the backend fetches a vocabulary word and its meaning from the Free Dictionary API and constructs the question programmatically.
+- **APIs:** Google Gemini API, Unsplash API, Datamuse API.
+  - **CRITICAL ARCHITECTURE NOTE:** Google Gemini is responsible only for generating the short narrative wrapper and image keyword. Math and English educational questions are generated locally by the backend. For English quests, the backend fetches a vocabulary word and its meaning from the Datamuse API and constructs the question programmatically.
   
 ## 2.5 Local Question Generation Engine (CRITICAL)
 Do NOT use the LLM to generate educational questions. The backend must generate them locally:
@@ -17,10 +17,10 @@ Do NOT use the LLM to generate educational questions. The backend must generate 
   - **Easy:** Addition and subtraction with numbers from 1 to 20.
   - **Medium:** Addition and subtraction up to 100. Multiplication up to 10 (times tables).
   - **Hard:** Addition and subtraction up to 1000. Multiplication up to 10. Division without remainder (e.g., 56 / 7).
-- **English Engine (Multiple Choice with Free Dictionary API):**
+- **English Engine (Multiple Choice with Datamuse API):**
   - Create 3 static arrays (Word Banks) in the backend containing only the target English words for Easy, Medium, and Hard.
-  - At runtime, the backend randomly selects a word from the appropriate difficulty bank and makes a live HTTP request to the Free Dictionary API.
-  - The backend extracts the definition, synonym, or example sentence from the API response and programmatically constructs a question string (e.g., "What is the definition of X?") along with 4 multiple-choice options (1 correct, 3 random distractors from the word bank).
+  - At runtime, the backend randomly selects a word from the appropriate difficulty bank and makes a live HTTP request to the Datamuse API.
+  - The backend extracts the definition from the API response and programmatically constructs a question string (e.g., "What is the definition of X?") along with 4 multiple-choice options (1 correct, 3 random distractors from the word bank).
 
 ## 3. Mandatory Workflow (Plan First, Code Later)
 Your autonomy is strictly limited. Follow this spiral development workflow:

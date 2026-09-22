@@ -84,23 +84,32 @@ async function generateChallenge({ subject, difficulty, branch = 'opening', prev
 }
 
 async function generateNarrative(promptText, apiKey = process.env.GEMINI_API_KEY) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: `${promptText}\nReturn JSON with only story and imageKeyword. Keep story under 30 words.` }] }],
-      generationConfig: { responseMimeType: 'application/json' },
-    }),
-  });
-  if (!response.ok) throw new Error('Gemini API failed');
-  const data = await response.json();
-  const resultText = data.candidates[0].content.parts[0].text;
-  const parsedJSON = JSON.parse(resultText);
-  if (!parsedJSON.story || !parsedJSON.imageKeyword || countWords(parsedJSON.story) > 30) {
-    throw new Error('Gemini returned invalid narrative data');
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not configured');
   }
-  return { story: parsedJSON.story, imageKeyword: parsedJSON.imageKeyword };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `${promptText}\nReturn JSON with only story and imageKeyword. Keep story under 30 words.` }] }],
+        generationConfig: { responseMimeType: 'application/json' },
+      }),
+    });
+    if (!response.ok) throw new Error('Gemini API failed');
+    const data = await response.json();
+    const resultText = data.candidates[0].content.parts[0].text;
+    const parsedJSON = JSON.parse(resultText);
+    if (!parsedJSON.story || !parsedJSON.imageKeyword || countWords(parsedJSON.story) > 30) {
+      throw new Error('Gemini returned invalid narrative data');
+    }
+    return { story: parsedJSON.story, imageKeyword: parsedJSON.imageKeyword };
+  } catch (error) {
+    console.error('Gemini REST Failure:', error);
+    throw error;
+  }
 }
 
 function hiddenQuestion(challenge, isRecovery) {

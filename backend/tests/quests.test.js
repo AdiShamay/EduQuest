@@ -53,6 +53,7 @@ async function createChild() {
 
 beforeAll(async () => {
   process.env.JWT_SECRET = 'test-secret';
+  process.env.GEMINI_API_KEY = 'test-gemini-key';
   mongoServer = await MongoMemoryServer.create();
   await connectDB(mongoServer.getUri());
 });
@@ -95,7 +96,10 @@ describe('Quest engine endpoints', () => {
     expect(quest.questions).toHaveLength(5);
     expect(quest.subject).toBe('Math');
     expect(quest.difficulty).toBe('Easy');
-    expect(narrativeMock).toHaveBeenCalledWith(expect.stringContaining('generativelanguage.googleapis.com'));
+    expect(narrativeMock).toHaveBeenCalledWith(
+      expect.stringContaining('generativelanguage.googleapis.com'),
+      expect.objectContaining({ method: 'POST' })
+    );
   });
 
   it('rejects invalid quest setup and non-child access', async () => {
@@ -181,10 +185,19 @@ describe('Quest engine endpoints', () => {
   it('completes on the fifth answer and rejects a sixth answer', async () => {
     const child = await createChild();
     let generation = 0;
-    mockExternalResponses(Array.from({ length: 5 }, (_, index) => ({
-      story: `Challenge ${index}`,
-      imageKeyword: 'cavern',
-    })));
+    jest.spyOn(global, 'fetch').mockImplementation(async (url) => {
+      if (url.includes('api.datamuse.com')) {
+        return { ok: true, json: async () => [{ defs: ['n\tA valid answer.'] }] };
+      }
+      const current = generation;
+      generation += 1;
+      return {
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({ story: `Challenge ${current}`, imageKeyword: 'cavern' }) }] } }],
+        }),
+      };
+    });
 
     const start = await request(app)
       .post('/api/quests/start')

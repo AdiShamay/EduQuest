@@ -53,6 +53,7 @@
 - Status: complete and verified.
 - Google Gemini API using `gemini-1.5-flash` now supplies only the narrative wrapper and image keyword.
 - Gemini requests use `responseMimeType: application/json` and reject educational fields or narratives over 30 words.
-- Local Math generation, Free Dictionary-backed English generation, four-option choices, and typed Math input remain unchanged.
+- Local Math generation, Datamuse-backed English generation, four-option choices, and typed Math input remain unchanged.
+- We replaced the Free Dictionary API with the Datamuse API for stability, and replaced the Gemini SDK with a direct REST fetch to resolve 404 and SDK-related integration errors.
 - OpenRouter integration and obsolete tests were removed; `GEMINI_API_KEY` is now the documented provider credential.
 - Verification: backend Jest passed 25 tests across 9 suites with forced process exit; frontend Vitest passed 8 tests; frontend production build passed; lint passed with one non-blocking React effect warning.

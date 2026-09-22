@@ -6,6 +6,10 @@ const {
 } = require('../src/services/questEngine');
 
 describe('Local educational question engine', () => {
+  beforeEach(() => {
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
+  });
+
   afterEach(() => jest.restoreAllMocks());
 
   it('generates a typed Math question locally without asking OpenRouter for an answer', () => {

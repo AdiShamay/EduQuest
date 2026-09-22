@@ -141,6 +141,7 @@ async function startQuest(req, res) {
       progress: { current: 1, total: TOTAL_QUESTIONS },
     });
   } catch (error) {
+    console.error('CRITICAL 500 ERROR DETAILS:', error);
     return res.status(500).json({ message: 'Unable to start quest', error: error.message || error });
   }
 }
