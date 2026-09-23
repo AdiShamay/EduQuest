@@ -125,7 +125,7 @@ function progressFor(quest) {
 }
 
 async function startQuest(req, res) {
-  console.log('--- START QUEST ENDPOINT HIT ---', req.body);
+  console.log('--- START QUEST ENDPOINT ---', req.body);
   const { subject, difficulty } = req.body;
 
   if (!SUBJECTS.includes(subject) || !DIFFICULTIES.includes(difficulty)) {
