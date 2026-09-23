@@ -93,3 +93,8 @@
 - Updated the backend analytics endpoint with date-bucketed chart data and paginated history while preserving parent/child authorization.
 - Updated legacy quest, Gemini, and local-engine tests for the current Gemini REST, batch narrative, Datamuse, and local educational-question architecture.
 - Verification: all backend and frontend tests pass successfully; production build is green.
+
+## Turn 13: Final Polish & Balancing
+- Status: complete.
+- Scaled up the procedural Math generation ranges across Easy, Medium, and Hard difficulties to improve challenge variety and progression.
+- Added a Child login redirect link explaining that children without accounts should ask a parent to provision their hero profile through the Parent Portal.

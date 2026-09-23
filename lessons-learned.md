@@ -16,3 +16,9 @@
 - Keeping Gemini responsible only for narrative metadata prevents educational correctness from depending on model output.
 - Gemini's `responseMimeType: application/json` is configured on the generative model and should be paired with application-level validation for story length and allowed fields.
 - Provider migrations require updating integration mocks and stale architecture documentation together; otherwise legacy tests can falsely report failures after a correct pivot.
+
+## Turn 13 / Final Polish
+- Data visualization: Stacked bar charts can mislead when tracking very small discrete integers; stacking 1 on top of 1 visually reads as 2 on the Y-axis. Grouped bars are safer for low-volume engagement tracking because each subject remains directly comparable.
+- Product UX: In a strict Parent-Led Registration EdTech model, children arriving organically at the child gateway need a clear conceptual off-ramp explaining that an adult must provision their account. A visible redirect to the Parent Portal makes that requirement actionable.
+- Final balancing changes should preserve the local question-generation boundary: expanding procedural Math ranges improves variety without introducing model-dependent educational correctness or additional API latency.
+- Small UI changes should keep focused regression coverage, especially when chart labels, authentication modes, and route-specific copy are part of the user flow.
