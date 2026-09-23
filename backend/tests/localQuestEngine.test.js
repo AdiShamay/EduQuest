@@ -8,7 +8,7 @@ describe('Local educational question engine', () => {
     const question = await generateEducationalQuestion('Math', 'Easy');
 
     expect(question.type).toBe('math');
-    expect(question.prompt).toMatch(/\d+ [+-] \d+/);
+    expect(question.prompt).toMatch(/\d+ [+\-x] \d+/);
     expect(question.correctAnswer).toBe('2');
     expect(question.options).toEqual([]);
   });

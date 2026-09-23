@@ -49,9 +49,9 @@ function calculateMathQuestion(operator, left, right) {
 
 function generateMathQuestion(difficulty) {
   if (difficulty === 'Easy') {
-    const left = Math.floor(Math.random() * 20) + 1;
-    const right = Math.floor(Math.random() * 20) + 1;
-    return calculateMathQuestion(Math.random() < 0.5 ? '+' : '-', left, right);
+    const operation = Math.floor(Math.random() * 3);
+    if (operation === 2) return calculateMathQuestion('x', Math.floor(Math.random() * 5) + 1, Math.floor(Math.random() * 5) + 1);
+    return calculateMathQuestion(operation === 0 ? '+' : '-', Math.floor(Math.random() * 50) + 1, Math.floor(Math.random() * 50) + 1);
   }
   if (difficulty === 'Medium') {
     const operation = Math.floor(Math.random() * 3);
@@ -59,10 +59,10 @@ function generateMathQuestion(difficulty) {
     return calculateMathQuestion(operation === 0 ? '+' : '-', Math.floor(Math.random() * 100) + 1, Math.floor(Math.random() * 100) + 1);
   }
   const operation = Math.floor(Math.random() * 4);
-  if (operation === 2) return calculateMathQuestion('x', Math.floor(Math.random() * 10) + 1, Math.floor(Math.random() * 10) + 1);
+  if (operation === 2) return calculateMathQuestion('x', Math.floor(Math.random() * 15) + 1, Math.floor(Math.random() * 15) + 1);
   if (operation === 3) {
-    const divisor = Math.floor(Math.random() * 9) + 2;
-    const quotient = Math.floor(Math.random() * 20) + 1;
+    const divisor = Math.floor(Math.random() * 14) + 2; // 2 to 15
+    const quotient = Math.floor(Math.random() * 20) + 2; // 2 to 21
     return calculateMathQuestion('/', divisor * quotient, divisor);
   }
   return calculateMathQuestion(operation === 0 ? '+' : '-', Math.floor(Math.random() * 1000) + 1, Math.floor(Math.random() * 1000) + 1);
@@ -133,7 +133,7 @@ async function generateStoryBatch(subject, difficulty, retries = 6) {
   IMPORTANT RULES:
   - Return ONLY a JSON array containing exactly 5 objects.
   - Each object must have exactly two keys: "story" and "imageKeyword".
-  - "story": A short continuous narrative segment (max 30 words). Part 1: Intro, Parts 2-4: The journey/obstacles, Part 5: The climax/conclusion.
+  - "story": A short continuous narrative segment in simple words (max 30 words). Part 1: Intro, Parts 2-4: The journey/obstacles, Part 5: The climax/conclusion.
   - "imageKeyword": A single word from the story to search for a background image (e.g., "castle", "forest", "dragon", "dungeon").
   - STRICT RULE: DO NOT include numbers, math equations, specific puzzles, or vocabulary definitions in the story text. The story must only describe the atmospheric adventure, environments, and heroic actions.
   - Do NOT include any markdown wrappers like \`\`\`json. Return pure JSON.`;
