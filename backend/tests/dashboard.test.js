@@ -43,6 +43,13 @@ function questFor(childId, overrides = {}) {
   };
 }
 
+function daysAgo(days) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - days);
+  date.setUTCHours(12, 0, 0, 0);
+  return date;
+}
+
 beforeAll(async () => {
   process.env.JWT_SECRET = 'test-secret';
   mongoServer = await MongoMemoryServer.create();
@@ -77,13 +84,14 @@ describe('Parent dashboard endpoints', () => {
     );
   });
 
-  it('returns child-scoped metrics, chart data, and difficulty history', async () => {
+  it('returns child-scoped metrics, advanced chart data, and paginated history', async () => {
     const parent = await createParent(`parent-${Date.now()}-analytics`);
     const child = await createChild(parent.body.token, `child-${Date.now()}-analytics`);
-    await Quest.create(questFor(child.body.user.id));
+    await Quest.create(questFor(child.body.user.id, { createdAt: daysAgo(1) }));
     await Quest.create(questFor(child.body.user.id, {
       subject: 'English',
       difficulty: 'Hard',
+      createdAt: daysAgo(2),
       answeredQuestions: 5,
       currentQuestionIndex: 4,
       questions: Array.from({ length: 5 }, (_, index) => ({
@@ -94,23 +102,28 @@ describe('Parent dashboard endpoints', () => {
         explanation: 'The answer follows the challenge clues.',
       })),
     }));
+    await Quest.create(questFor(child.body.user.id, { difficulty: 'Medium', createdAt: daysAgo(40) }));
 
     const response = await request(app)
-      .get(`/api/quests/analytics/${child.body.user.id}`)
+      .get(`/api/quests/analytics/${child.body.user.id}?page=1&limit=2`)
       .set('Authorization', `Bearer ${parent.body.token}`);
 
     expect(response.status).toBe(200);
     expect(response.body.metrics).toEqual({
-      totalQuests: 2,
-      overallAccuracy: 89,
-      favoriteDifficulty: 'Hard',
+      totalQuests: 3,
+      overallAccuracy: 92,
+      favoriteDifficulty: 'Easy',
     });
-    expect(response.body.monthlySuccessByWeek).toEqual(expect.any(Array));
-    expect(response.body.dailyAccuracy).toEqual(expect.any(Array));
-    expect(response.body.history).toEqual([
-      expect.objectContaining({ difficulty: 'Hard', subject: 'English' }),
-      expect.objectContaining({ difficulty: 'Easy', subject: 'Math' }),
-    ]);
+    expect(response.body.performanceTrend).toEqual(expect.any(Array));
+    expect(response.body.activityVolume).toEqual(expect.any(Array));
+    expect(response.body.difficultyDistribution).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Easy' }),
+      expect.objectContaining({ name: 'Hard' }),
+      expect.objectContaining({ name: 'Medium' }),
+    ]));
+    expect(response.body.history).toHaveLength(2);
+    expect(response.body.hasMore).toBe(true);
+    expect(response.body.totalHistory).toBe(3);
   });
 
   it('rejects child-role users and parents requesting unrelated child data', async () => {

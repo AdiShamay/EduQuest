@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import './App.css'
 
 const SESSION_KEY = 'eduquest_session'
@@ -243,14 +243,59 @@ function ActiveQuest() {
   </main>
 }
 
-const emptyAnalytics = { metrics: { totalQuests: 0, overallAccuracy: 0, favoriteDifficulty: 'None' }, monthlySuccessByWeek: [], dailyAccuracy: [], history: [] }
+const emptyAnalytics = {
+  metrics: { totalQuests: 0, overallAccuracy: 0, favoriteDifficulty: 'None' },
+  performanceTrend: [], activityVolume: [], difficultyDistribution: [], history: [],
+  hasMore: false, page: 1, totalHistory: 0,
+}
 
 function Metric({ label, value }) { return <article className="metric"><span>{label}</span><strong>{value}</strong></article> }
 
-function AnalyticsChart({ title, data, dataKey, categoryKey, color }) {
-  return <section className="chart-panel"><div className="section-heading"><p className="eyebrow">Signal</p><h2>{title}</h2></div><div className="chart-wrap">
-    {data.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={data}><CartesianGrid strokeDasharray="3 3" stroke="#334155" /><XAxis dataKey={categoryKey} stroke="#94a3b8" /><YAxis stroke="#94a3b8" /><Tooltip contentStyle={{ background: '#111827', border: '1px solid #475569' }} /><Bar dataKey={dataKey} fill={color} radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer> : <p className="empty-state">No completed quests recorded yet.</p>}
-  </div></section>
+function dateLabel(date) {
+  const [, month, day] = date.split('-')
+  return `${month}-${day}`
+}
+
+function ChartPanel({ title, children, empty }) {
+  return <section className="chart-panel"><div className="section-heading"><h2>{title}</h2></div><div className="chart-wrap">{empty ? <p className="empty-state">No completed quests recorded yet.</p> : children}</div></section>
+}
+
+function AnalyticsCharts({ analytics }) {
+  const tooltipStyle = { background: '#111827', border: '1px solid #475569' }
+  const difficultyOrder = { Easy: 0, Medium: 1, Hard: 2 }
+  const sortedDifficultyDistribution = [...analytics.difficultyDistribution].sort((left, right) => difficultyOrder[left.name] - difficultyOrder[right.name])
+  return <section className="chart-grid advanced-chart-grid">
+    <ChartPanel title="Performance - Last Month" empty={!analytics.performanceTrend.some((day) => day.math || day.english)}>
+      <ResponsiveContainer width="100%" height="100%"><ComposedChart data={analytics.performanceTrend}><CartesianGrid strokeDasharray="3 3" stroke="#334155" /><XAxis dataKey="date" tickFormatter={dateLabel} stroke="#94a3b8" /><YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tickFormatter={(value) => `${value}%`} stroke="#94a3b8" /><Tooltip labelFormatter={dateLabel} formatter={(value, name) => [`${value}%`, name]} contentStyle={tooltipStyle} /><Legend /><Bar dataKey="math" name="Math" fill="#e2b659" radius={[4, 4, 0, 0]} /><Line dataKey="english" name="English" stroke="#68b7a6" strokeWidth={3} dot={false} /></ComposedChart></ResponsiveContainer>
+    </ChartPanel>
+    <ChartPanel title="Activity - Last Week" empty={!analytics.activityVolume.some((day) => day.math || day.english)}>
+      <ResponsiveContainer width="100%" height="100%"><BarChart data={analytics.activityVolume}><CartesianGrid strokeDasharray="3 3" stroke="#334155" /><XAxis dataKey="date" tickFormatter={dateLabel} stroke="#94a3b8" /><YAxis allowDecimals={false} stroke="#94a3b8" /><Tooltip labelFormatter={dateLabel} contentStyle={tooltipStyle} /><Legend /><Bar dataKey="math" name="Math" fill="#e2b659" /><Bar dataKey="english" name="English" fill="#68b7a6" /></BarChart></ResponsiveContainer>
+    </ChartPanel>
+    <ChartPanel title="Difficulty Distribution" empty={!sortedDifficultyDistribution.some((item) => item.value)}>
+      <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={sortedDifficultyDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="72%" label><Cell fill="#68b7a6" /><Cell fill="#e2b659" /><Cell fill="#c77d5d" /></Pie><Tooltip contentStyle={tooltipStyle} /><Legend /></PieChart></ResponsiveContainer>
+    </ChartPanel>
+  </section>
+}
+
+function AddHeroModal({ childForm, setChildForm, isCreating, error, onClose, onSubmit }) {
+  useEffect(() => {
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
+
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <section className="hero-modal" role="dialog" aria-modal="true" aria-labelledby="add-hero-title">
+      <div className="modal-heading"><div><p className="eyebrow">Party management</p><h2 id="add-hero-title">Add a hero</h2></div><button className="modal-close" type="button" aria-label="Close add hero dialog" onClick={onClose}>×</button></div>
+      <form className="auth-form" onSubmit={onSubmit}><label htmlFor="new-child-username">New child username</label><input id="new-child-username" value={childForm.username} onChange={(event) => setChildForm({ ...childForm, username: event.target.value })} required /><label htmlFor="new-child-password">New child password</label><input id="new-child-password" type="password" minLength="8" value={childForm.password} onChange={(event) => setChildForm({ ...childForm, password: event.target.value })} required />{error && <p className="form-error" role="alert">{error}</p>}<button className="button button-primary" type="submit" disabled={isCreating}>{isCreating ? 'Linking...' : 'Create child profile'}</button></form>
+    </section>
+  </div>
+}
+
+function HistoryPanel({ history, hasMore, loading, onLoadMore }) {
+  return <section className="history-panel full-width-panel"><div className="section-heading"><p className="eyebrow">Archive</p><h2>Quest history</h2></div><div className="history-list">{history.length ? history.map((quest) => <article className="history-row" key={quest.id}><div><strong>{quest.subject}</strong><span>{quest.completed ? 'Completed' : 'In progress'}</span></div><span className="difficulty-tag">{quest.difficulty}</span><span>{quest.score}/{quest.totalQuestions}</span></article>) : <p className="empty-state">Quest records will appear here.</p>}</div>{hasMore && <button className="button button-quiet load-more" type="button" onClick={onLoadMore} disabled={loading}>{loading ? 'Loading...' : 'Load More...'}</button>}</section>
 }
 
 function Dashboard() {
@@ -261,6 +306,9 @@ function Dashboard() {
   const [error, setError] = useState('')
   const [childForm, setChildForm] = useState({ username: '', password: '' })
   const [isCreating, setIsCreating] = useState(false)
+  const [isAddHeroOpen, setIsAddHeroOpen] = useState(false)
+  const [historyPage, setHistoryPage] = useState(1)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   useEffect(() => {
     requestJson('/api/auth/children', {}, session.token).then((response) => {
       const nextChildren = response.children || []
@@ -269,24 +317,35 @@ function Dashboard() {
   }, [session.token])
   useEffect(() => {
     if (!selectedChildId) { setAnalytics(emptyAnalytics); return }
-    requestJson(`/api/quests/analytics/${selectedChildId}`, {}, session.token).then(setAnalytics).catch((loadError) => setError(loadError.message))
+    setHistoryPage(1)
+    requestJson(`/api/quests/analytics/${selectedChildId}?page=1&limit=5`, {}, session.token).then(setAnalytics).catch((loadError) => setError(loadError.message))
   }, [selectedChildId, session.token])
   async function createChild(event) {
     event.preventDefault(); setError(''); setIsCreating(true)
     try {
       const response = await requestJson('/api/auth/create-child', { method: 'POST', body: JSON.stringify(childForm) }, session.token)
-      setChildren((currentChildren) => [...currentChildren, response.user]); setChildForm({ username: '', password: '' })
+      setChildren((currentChildren) => [...currentChildren, response.user]); setSelectedChildId(response.user.id); setChildForm({ username: '', password: '' }); setIsAddHeroOpen(false)
     } catch (createError) { setError(createError.message) } finally { setIsCreating(false) }
+  }
+  async function loadMoreHistory() {
+    if (!selectedChildId || isLoadingMore) return
+    const nextPage = historyPage + 1
+    setIsLoadingMore(true)
+    try {
+      const nextAnalytics = await requestJson(`/api/quests/analytics/${selectedChildId}?page=${nextPage}&limit=5`, {}, session.token)
+      setAnalytics((current) => ({ ...current, history: [...current.history, ...nextAnalytics.history], hasMore: nextAnalytics.hasMore, totalHistory: nextAnalytics.totalHistory }))
+      setHistoryPage(nextPage)
+    } catch (loadError) { setError(loadError.message) } finally { setIsLoadingMore(false) }
   }
   const activeChild = children.find((child) => child.id === selectedChildId)
   return <main className="portal-shell dashboard-shell">
     <header className="dashboard-header"><div><p className="eyebrow">EduQuest / Observatory</p><h1>Parent dashboard</h1></div><button className="button button-quiet" type="button" onClick={clearSession}>Sign out</button></header>
     {error && <p className="form-error" role="alert">{error}</p>}
-    <section className="child-strip" aria-label="Choose a child"><div><p className="eyebrow">Active learner</p><h2>{activeChild?.username || 'No learner linked'}</h2></div><div className="child-tabs">{children.map((child) => <button key={child.id} className={child.id === selectedChildId ? 'child-tab active' : 'child-tab'} type="button" onClick={() => setSelectedChildId(child.id)}>{child.username}</button>)}</div></section>
+    <section className="child-strip" aria-label="Choose a child"><div><p className="eyebrow">Active learner</p><h2>{activeChild?.username || 'No learner linked'}</h2></div><div className="child-tabs">{children.map((child) => <button key={child.id} className={child.id === selectedChildId ? 'child-tab active' : 'child-tab'} type="button" onClick={() => setSelectedChildId(child.id)}>{child.username}</button>)}<button className="button button-primary add-hero-button" type="button" onClick={() => { setError(''); setIsAddHeroOpen(true) }}>+ Add Hero</button></div></section>
     <section className="metric-grid" aria-label="Quest summary"><Metric label="Total quests" value={analytics.metrics.totalQuests} /><Metric label="Overall accuracy" value={`${analytics.metrics.overallAccuracy}%`} /><Metric label="Favorite difficulty" value={analytics.metrics.favoriteDifficulty} /></section>
-    <section className="chart-grid"><AnalyticsChart title="Monthly success by week" data={analytics.monthlySuccessByWeek} dataKey="successful" categoryKey="week" color="#e2b659" /><AnalyticsChart title="Daily accuracy" data={analytics.dailyAccuracy} dataKey="accuracy" categoryKey="date" color="#68b7a6" /></section>
-    <section className="lower-grid"><section className="history-panel"><div className="section-heading"><p className="eyebrow">Archive</p><h2>Quest history</h2></div><div className="history-list">{analytics.history.length ? analytics.history.map((quest) => <article className="history-row" key={quest.id}><div><strong>{quest.subject}</strong><span>{quest.completed ? 'Completed' : 'In progress'}</span></div><span className="difficulty-tag">{quest.difficulty}</span><span>{quest.score}/{quest.totalQuestions}</span></article>) : <p className="empty-state">Quest records will appear here.</p>}</div></section>
-    <section className="child-form-panel"><div className="section-heading"><p className="eyebrow">Party management</p><h2>Link a child</h2></div><form className="auth-form" onSubmit={createChild}><label htmlFor="new-child-username">New child username</label><input id="new-child-username" value={childForm.username} onChange={(event) => setChildForm({ ...childForm, username: event.target.value })} required /><label htmlFor="new-child-password">New child password</label><input id="new-child-password" type="password" minLength="8" value={childForm.password} onChange={(event) => setChildForm({ ...childForm, password: event.target.value })} required /><button className="button button-primary" type="submit" disabled={isCreating}>{isCreating ? 'Linking...' : 'Create child profile'}</button></form></section></section>
+    <AnalyticsCharts analytics={analytics} />
+    <HistoryPanel history={analytics.history} hasMore={analytics.hasMore} loading={isLoadingMore} onLoadMore={loadMoreHistory} />
+    {isAddHeroOpen && <AddHeroModal childForm={childForm} setChildForm={setChildForm} isCreating={isCreating} error={error} onClose={() => { setError(''); setIsAddHeroOpen(false) }} onSubmit={createChild} />}
   </main>
 }
 

@@ -15,9 +15,34 @@ function formatDate(date) {
   return new Date(date).toISOString().slice(0, 10);
 }
 
-function weekLabel(date) {
-  const day = new Date(date).getUTCDate();
-  return `Week ${Math.ceil(day / 7)}`;
+function dateDaysAgo(days) {
+  const date = new Date();
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date;
+}
+
+function dateRange(days) {
+  return Array.from({ length: days }, (_, index) => formatDate(dateDaysAgo(days - index - 1)));
+}
+
+function questionScore(quest) {
+  const answered = quest.questions.slice(0, quest.answeredQuestions);
+  return answered.length
+    ? Math.round((answered.filter((question) => question.passed).length / answered.length) * 100)
+    : 0;
+}
+
+function historyEntry(quest) {
+  return {
+    id: quest._id.toString(),
+    subject: quest.subject,
+    difficulty: quest.difficulty,
+    completed: quest.completed,
+    score: quest.questions.slice(0, quest.answeredQuestions).filter((question) => question.passed).length,
+    totalQuestions: quest.answeredQuestions,
+    createdAt: quest.createdAt,
+  };
 }
 
 async function getAnalytics(req, res) {
@@ -31,6 +56,8 @@ async function getAnalytics(req, res) {
     return res.status(403).json({ message: 'Child is not linked to this parent' });
   }
 
+  const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 5, 1), 50);
   const quests = await Quest.find({ childId: child._id }).sort({ createdAt: -1 });
   const difficultyCounts = quests.reduce((counts, quest) => {
     counts[quest.difficulty] = (counts[quest.difficulty] || 0) + 1;
@@ -44,35 +71,34 @@ async function getAnalytics(req, res) {
     right[1] - left[1]
   )[0]?.[0] || 'None';
 
-  const monthlySuccessByWeek = quests.reduce((weeks, quest) => {
-    const week = weekLabel(quest.createdAt);
-    const entry = weeks.find((item) => item.week === week);
-    const successful = quest.questions.slice(0, quest.answeredQuestions).every(
-      (question) => question.passed
-    ) ? 1 : 0;
-    if (entry) {
-      entry.successful += successful;
-      entry.total += 1;
-    } else {
-      weeks.push({ week, successful, total: 1 });
-    }
-    return weeks;
-  }, []);
-
-  const dailyAccuracy = Object.values(
-    quests.reduce((days, quest) => {
-      const date = formatDate(quest.createdAt);
-      days[date] ||= { date, passed: 0, answered: 0 };
-      quest.questions.slice(0, quest.answeredQuestions).forEach((question) => {
-        days[date].passed += question.passed ? 1 : 0;
-        days[date].answered += 1;
-      });
-      return days;
-    }, {})
-  ).map(({ date, passed, answered }) => ({
+  const performanceDays = dateRange(30).map((date) => ({ date, mathScores: [], englishScores: [] }));
+  const performanceByDate = Object.fromEntries(performanceDays.map((day) => [day.date, day]));
+  quests.forEach((quest) => {
+    const day = performanceByDate[formatDate(quest.createdAt)];
+    if (!day) return;
+    const scores = quest.subject === 'Math' ? day.mathScores : day.englishScores;
+    scores.push(questionScore(quest));
+  });
+  const performanceTrend = performanceDays.map(({ date, mathScores, englishScores }) => ({
     date,
-    accuracy: answered ? Math.round((passed / answered) * 100) : 0,
+    math: mathScores.length ? Math.round(mathScores.reduce((sum, score) => sum + score, 0) / mathScores.length) : 0,
+    english: englishScores.length ? Math.round(englishScores.reduce((sum, score) => sum + score, 0) / englishScores.length) : 0,
   }));
+
+  const activityDays = dateRange(7).map((date) => ({ date, math: 0, english: 0 }));
+  const activityByDate = Object.fromEntries(activityDays.map((day) => [day.date, day]));
+  quests.forEach((quest) => {
+    const day = activityByDate[formatDate(quest.createdAt)];
+    if (day) day[quest.subject.toLowerCase()] += 1;
+  });
+  const activityVolume = activityDays;
+  const difficultyDistribution = DIFFICULTIES.map((difficulty) => ({
+    name: difficulty,
+    value: difficultyCounts[difficulty] || 0,
+  }));
+  const historyStart = (page - 1) * limit;
+  const history = quests.slice(historyStart, historyStart + limit).map(historyEntry);
+  const totalHistory = quests.length;
 
   return res.status(200).json({
     child: { id: child._id.toString(), username: child.username },
@@ -83,17 +109,14 @@ async function getAnalytics(req, res) {
         : 0,
       favoriteDifficulty,
     },
-    monthlySuccessByWeek,
-    dailyAccuracy,
-    history: quests.map((quest) => ({
-      id: quest._id.toString(),
-      subject: quest.subject,
-      difficulty: quest.difficulty,
-      completed: quest.completed,
-      score: quest.questions.slice(0, quest.answeredQuestions).filter((question) => question.passed).length,
-      totalQuestions: quest.answeredQuestions,
-      createdAt: quest.createdAt,
-    })),
+    performanceTrend,
+    activityVolume,
+    difficultyDistribution,
+    history,
+    page,
+    limit,
+    totalHistory,
+    hasMore: historyStart + history.length < totalHistory,
   });
 }
 

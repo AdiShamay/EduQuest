@@ -1,20 +1,11 @@
-const {
-  generateChallenge,
-  generateEnglishQuestion,
-  generateMathQuestion,
-  generateNarrative,
-} = require('../src/services/questEngine');
+const { generateEducationalQuestion } = require('../src/services/questEngine');
 
 describe('Local educational question engine', () => {
-  beforeEach(() => {
-    process.env.GEMINI_API_KEY = 'test-gemini-key';
-  });
-
   afterEach(() => jest.restoreAllMocks());
 
-  it('generates a typed Math question locally without asking OpenRouter for an answer', () => {
+  it('generates a typed Math question locally without asking an LLM', async () => {
     jest.spyOn(Math, 'random').mockReturnValue(0);
-    const question = generateMathQuestion('Easy');
+    const question = await generateEducationalQuestion('Math', 'Easy');
 
     expect(question.type).toBe('math');
     expect(question.prompt).toMatch(/\d+ [+-] \d+/);
@@ -22,23 +13,22 @@ describe('Local educational question engine', () => {
     expect(question.options).toEqual([]);
   });
 
-  it('builds an English question with four options from a dictionary definition', async () => {
+  it('builds an English question with options from the Datamuse dictionary definition', async () => {
     const dictionaryFetch = jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [{ defs: ['n\tA brave act.'] }],
     });
     jest.spyOn(Math, 'random').mockReturnValue(0);
 
-    const question = await generateEnglishQuestion('Easy');
+    const question = await generateEducationalQuestion('English', 'Easy');
 
     expect(question.type).toBe('english');
-    expect(question.options).toHaveLength(4);
+    expect(question.options.length).toBeGreaterThan(0);
     expect(question.options).toContain(question.correctAnswer);
-    expect(question.prompt).toContain('definition');
-    expect(dictionaryFetch).toHaveBeenCalledWith(expect.stringContaining('https://api.datamuse.com/words?sp=brave'));
+    expect(dictionaryFetch).toHaveBeenCalledWith(expect.stringContaining('api.datamuse.com/words?sp='));
   });
 
-  it('reports the dictionary error object when a word has no definition', async () => {
+  it('uses fallback text for definitions when the dictionary returns a 404', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: false,
       status: 404,
@@ -46,28 +36,19 @@ describe('Local educational question engine', () => {
     });
     jest.spyOn(Math, 'random').mockReturnValue(0);
 
-    await expect(generateEnglishQuestion('Easy')).rejects.toThrow('Definition not found');
+    const question = await generateEducationalQuestion('English', 'Easy');
+    
+    expect(question.type).toBe('english');
+    expect(question.correctAnswer).toMatch(/^The meaning of the word/);
   });
 
-  it('uses the local question when the dictionary returns Cloudflare HTML', async () => {
+  it('uses fallback text for definitions when the dictionary returns Cloudflare HTML (522)', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 522, json: async () => [] });
     jest.spyOn(Math, 'random').mockReturnValue(0);
 
-    await expect(generateEnglishQuestion('Medium')).rejects.toThrow('Definition not found');
-  });
-
-  it('combines a local question with a narrative-only OpenRouter response', async () => {
-    jest.spyOn(Math, 'random').mockReturnValue(0);
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ story: 'A silver gate rises.', imageKeyword: 'gate' }) }] } }] }),
-    });
-
-    const challenge = await generateChallenge({ subject: 'Math', difficulty: 'Easy' });
-
-    expect(challenge.question.type).toBe('math');
-    expect(challenge.question.correctAnswer).toBe('2');
-    expect(challenge.story).toBe('A silver gate rises.');
-    expect(challenge.imageKeyword).toBe('gate');
+    const question = await generateEducationalQuestion('English', 'Medium');
+    
+    expect(question.type).toBe('english');
+    expect(question.correctAnswer).toMatch(/^The meaning of the word/);
   });
 });

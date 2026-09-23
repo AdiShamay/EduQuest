@@ -9,10 +9,12 @@
 
 ## 2. The Parent Dashboard (`/dashboard`)
 - **Top Metrics:** KPI cards including "Total Quests", "Overall Accuracy", and "Favorite Difficulty Level".
-- **Visual Analytics:** A `Recharts` graph showing the child's performance history.
-- **Choice Tracking:** A clear log showing exactly which difficulty level (Easy/Medium/Hard) the child chose for each past session.
-- **Multi-Child Navigation:** A clear UI element (e.g., tabs or a dropdown menu) at the top of the dashboard allowing the parent to switch the active view between multiple children. All graphs, metrics, and history logs must dynamically update to reflect the currently selected child.
-- **Child Management:** A simple section allowing the parent to generate new login credentials (usernames/passwords) for one or more children, securely linking all of them to the parent's master account.
+- **Multi-Child Navigation & Management:** A clear tabbed UI at the top for switching between active children. Next to these tabs, an explicitly styled "+ Add Hero" button opens a modal/pop-up window for generating new child credentials. This removes the registration form from the main dashboard body to save screen space. All dashboard data must dynamically update based on the selected tab.
+- **Visual Analytics (Recharts):** The dashboard must render 3 distinct charts with realistic timeframes:
+  1. **Performance Trend (Last 30 Days):** A Composed Chart showing daily average scores plotted by distinct dates (e.g., "09-20", "09-21"). It must visually separate subjects (e.g., rendering Math as bars and English as a continuous line) to easily spot knowledge gaps.
+  2. **Activity Volume (Last 7 Days):** A Stacked Bar Chart showing the total number of quests completed per day, stacked or grouped by subject (Math vs. English) to highlight recent engagement.
+  3. **Difficulty Distribution (All-Time):** A Pie Chart presenting the percentage breakdown of chosen difficulty levels (Easy/Medium/Hard) across the child's entire history.
+- **Quest History:** A full-width list at the bottom showing quest details (subject, difficulty, score). To maintain a clean UI, this list must render a maximum of 5 recent quests initially, with a clear "Load More..." button beneath it to expand older history on demand.
 
 ## 3. The Child Quest Flow (`/quest`)
 - **Setup Phase:** The child explicitly selects the subject (Math OR English) and the difficulty (Easy, Medium, Hard).

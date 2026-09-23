@@ -9,24 +9,35 @@ const { connectDB } = require('../src/config/database');
 
 let mongoServer;
 
-function narrativeResponse({ prompt, imageKeyword = 'cavern' }) {
-  return { story: prompt, imageKeyword };
+function fantasyNarrativeParts() {
+  return [
+    { story: 'A silver gate rises beneath the moonlit keep.', imageKeyword: 'gate' },
+    { story: 'The hero crosses a misty bridge guarded by ancient runes.', imageKeyword: 'bridge' },
+    { story: 'A dark forest opens around the path with whispering leaves.', imageKeyword: 'forest' },
+    { story: 'The final tower glows beyond a field of fallen stars.', imageKeyword: 'tower' },
+    { story: 'At dawn, the restored realm welcomes its victorious champion.', imageKeyword: 'dawn' },
+  ];
 }
 
-function mockExternalResponses(narratives) {
-  let narrativeIndex = 0;
+function mockBatchExternalResponses() {
+  const geminiResponse = {
+    candidates: [{ content: { parts: [{ text: JSON.stringify(fantasyNarrativeParts()) }] } }],
+  };
+
   return jest.spyOn(global, 'fetch').mockImplementation(async (url) => {
     if (url.includes('api.datamuse.com')) {
-      return { ok: true, json: async () => [{ defs: ['n\tA hidden word meaning.'] }] };
+      const word = new URL(url).searchParams.get('sp');
+      return {
+        ok: true,
+        json: async () => [{ defs: [`n\tA dictionary definition for ${word}.`] }],
+      };
     }
-    const narrative = narratives[Math.min(narrativeIndex, narratives.length - 1)];
-    narrativeIndex += 1;
-    return {
-      ok: true,
-      json: async () => ({
-        candidates: [{ content: { parts: [{ text: JSON.stringify(narrative) }] } }],
-      }),
-    };
+
+    if (url.includes('generativelanguage.googleapis.com')) {
+      return { ok: true, json: async () => geminiResponse };
+    }
+
+    throw new Error(`Unexpected external request: ${url}`);
   });
 }
 
@@ -75,13 +86,9 @@ afterAll(async () => {
 });
 
 describe('Quest engine endpoints', () => {
-  it('starts a five-question child quest and asks Gemini for the narrative wrapper', async () => {
+  it('starts a five-question child quest with one batched Gemini narrative request', async () => {
     const child = await createChild();
-    const narrativeMock = mockExternalResponses([
-      narrativeResponse({
-        prompt: 'A rune glows beside the gate.',
-      })
-    ]);
+    const fetchMock = mockBatchExternalResponses();
 
     const response = await request(app)
       .post('/api/quests/start')
@@ -96,9 +103,13 @@ describe('Quest engine endpoints', () => {
     expect(quest.questions).toHaveLength(5);
     expect(quest.subject).toBe('Math');
     expect(quest.difficulty).toBe('Easy');
-    expect(narrativeMock).toHaveBeenCalledWith(
-      expect.stringContaining('generativelanguage.googleapis.com'),
-      expect.objectContaining({ method: 'POST' })
+    expect(quest.questions.map((question) => question.story)).toEqual(
+      fantasyNarrativeParts().map((part) => part.story)
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash'),
+      expect.objectContaining({ method: 'POST', body: expect.stringContaining('responseMimeType') })
     );
   });
 
@@ -125,19 +136,14 @@ describe('Quest engine endpoints', () => {
 
   it('returns educational correction and generates a recovery challenge after an incorrect answer', async () => {
     const child = await createChild();
-    mockExternalResponses([
-      narrativeResponse({ prompt: 'Solve the ward: 5 x 4.' }),
-      narrativeResponse({
-        prompt: 'The ward snaps shut. Escape by solving 3 + 2.',
-        imageKeyword: 'trap',
-      }),
-    ]);
+    const fetchMock = mockBatchExternalResponses();
 
     const start = await request(app)
       .post('/api/quests/start')
       .set('Authorization', `Bearer ${child.token}`)
       .send({ subject: 'Math', difficulty: 'Medium' });
     const startedQuest = await Quest.findById(start.body.quest.id);
+    const externalCallCountAfterStart = fetchMock.mock.calls.length;
     const answer = await request(app)
       .post('/api/quests/answer')
       .set('Authorization', `Bearer ${child.token}`)
@@ -150,19 +156,16 @@ describe('Quest engine endpoints', () => {
       expect.objectContaining({ correctAnswer: startedQuest.questions[0].correctAnswer, explanation: startedQuest.questions[0].explanation })
     );
     expect(answer.body.branch).toBe('setback');
-    expect(answer.body.nextQuestion.prompt).toMatch(/^Solve:/);
-    expect(answer.body.nextQuestion.imageKeyword).toBe('trap');
+    expect(answer.body.nextQuestion.prompt).toBe(startedQuest.questions[1].narrativePrompt);
+    expect(answer.body.nextQuestion.imageKeyword).toBe('bridge');
     expect(quest.questions[0].userAnswer).toBe('__wrong_answer__');
     expect(quest.questions[0].passed).toBe(false);
-    expect(quest.questions[1].isRecovery).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(externalCallCountAfterStart);
   });
 
   it('progresses normally after a correct answer', async () => {
     const child = await createChild();
-    mockExternalResponses([
-      narrativeResponse({ prompt: 'Name the hidden key.' }),
-      narrativeResponse({ prompt: 'The path opens.' }),
-    ]);
+    const fetchMock = mockBatchExternalResponses();
 
     const start = await request(app)
       .post('/api/quests/start')
@@ -180,24 +183,12 @@ describe('Quest engine endpoints', () => {
     expect(answer.body.feedback).toBeUndefined();
     expect(answer.body.nextQuestion.type).toBe('english');
     expect(answer.body.nextQuestion.options).toHaveLength(4);
+    expect(fetchMock).toHaveBeenCalledTimes(21);
   });
 
   it('completes on the fifth answer and rejects a sixth answer', async () => {
     const child = await createChild();
-    let generation = 0;
-    jest.spyOn(global, 'fetch').mockImplementation(async (url) => {
-      if (url.includes('api.datamuse.com')) {
-        return { ok: true, json: async () => [{ defs: ['n\tA valid answer.'] }] };
-      }
-      const current = generation;
-      generation += 1;
-      return {
-        ok: true,
-        json: async () => ({
-          candidates: [{ content: { parts: [{ text: JSON.stringify({ story: `Challenge ${current}`, imageKeyword: 'cavern' }) }] } }],
-        }),
-      };
-    });
+    const fetchMock = mockBatchExternalResponses();
 
     const start = await request(app)
       .post('/api/quests/start')
@@ -220,6 +211,6 @@ describe('Quest engine endpoints', () => {
     expect(lastAnswer.body.completed).toBe(true);
     expect(lastAnswer.body.progress).toEqual({ current: 5, total: 5 });
     expect(extraAnswer.status).toBe(409);
-    expect(generation).toBe(5);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -83,3 +83,13 @@
 - Landing CTAs navigate to `/login` with React Router state so child entry opens child login mode and parent entry opens the parent gate.
 - Login remains exclusively on `/login`; existing dashboard, quest setup, and active quest routes are unchanged.
 - Verification: frontend Vitest passed 11 tests; frontend production build passed; frontend lint passed with the existing non-blocking React effect warning. Existing Tailwind at-rule and bundle-size warnings remain non-blocking.
+
+## Turn 12: Parent Dashboard Overhaul
+- Status: complete and verified.
+- Replaced the embedded child registration form with an accessible `+ Add Hero` modal beside the active learner tabs.
+- Added three child-scoped Recharts visualizations: 30-day Math/English performance trend, 7-day stacked subject activity, and all-time difficulty distribution.
+- Added clean date labels, subject-specific chart styling, responsive layout, and graceful empty-data states.
+- Moved Quest History to a full-width panel with five-item initial pagination and a `Load More...` flow for older quests.
+- Updated the backend analytics endpoint with date-bucketed chart data and paginated history while preserving parent/child authorization.
+- Updated legacy quest, Gemini, and local-engine tests for the current Gemini REST, batch narrative, Datamuse, and local educational-question architecture.
+- Verification: all backend and frontend tests pass successfully; production build is green.

@@ -84,26 +84,30 @@ describe('EduQuest frontend', () => {
       }))
       .mockReturnValue(jsonResponse({
         metrics: { totalQuests: 4, overallAccuracy: 75, favoriteDifficulty: 'Medium' },
-        monthlySuccessByWeek: [{ week: 'Week 1', successful: 2, total: 3 }],
-        dailyAccuracy: [{ date: '2026-09-17', accuracy: 75 }],
+        performanceTrend: [{ date: '2026-09-17', math: 75, english: 0 }],
+        activityVolume: [{ date: '2026-09-17', math: 2, english: 1 }],
+        difficultyDistribution: [{ name: 'Easy', value: 1 }, { name: 'Medium', value: 2 }, { name: 'Hard', value: 1 }],
         history: [{ id: 'quest-1', subject: 'Math', difficulty: 'Medium', score: 4, totalQuestions: 5 }],
+        hasMore: false,
+        totalHistory: 1,
       }))
 
     render(<App />)
     expect(await screen.findByRole('heading', { name: /parent dashboard/i })).toBeInTheDocument()
     expect(await screen.findByText('75%')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /monthly success by week/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /daily accuracy/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /performance - last month/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /activity - last week/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /difficulty distribution/i })).toBeInTheDocument()
     expect(screen.getAllByText(/medium/i).length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('button', { name: /bea/i }))
 
     await waitFor(() => expect(globalThis.fetch).toHaveBeenLastCalledWith(
-      '/api/quests/analytics/child-2',
+      '/api/quests/analytics/child-2?page=1&limit=5',
       expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer parent-token' }) })
     ))
   })
 
-  it('creates a linked child from the dashboard', async () => {
+  it('opens the Add Hero modal and creates a linked child', async () => {
     sessionStorage.setItem('eduquest_session', JSON.stringify({
       token: 'parent-token',
       user: { id: 'parent-1', username: 'parent-one', role: 'parent' },
@@ -112,15 +116,37 @@ describe('EduQuest frontend', () => {
     vi.spyOn(globalThis, 'fetch')
       .mockReturnValueOnce(jsonResponse({ children: [] }))
       .mockReturnValueOnce(jsonResponse({ user: { id: 'child-3', username: 'Nova', role: 'child' } }, 201))
+      .mockReturnValueOnce(jsonResponse({ metrics: { totalQuests: 0, overallAccuracy: 0, favoriteDifficulty: 'None' }, performanceTrend: [], activityVolume: [], difficultyDistribution: [], history: [], hasMore: false, totalHistory: 0 }))
 
     render(<App />)
     await screen.findByRole('heading', { name: /parent dashboard/i })
+    fireEvent.click(screen.getByRole('button', { name: /add hero/i }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText(/new child username/i), { target: { value: 'Nova' } })
     fireEvent.change(screen.getByLabelText(/new child password/i), { target: { value: 'child-password' } })
     fireEvent.click(screen.getByRole('button', { name: /create child profile/i }))
 
-    await waitFor(() => expect(screen.getByText(/nova/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: /nova/i })).toBeInTheDocument())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/auth/create-child', expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('shows five history rows initially and appends another page', async () => {
+    sessionStorage.setItem('eduquest_session', JSON.stringify({
+      token: 'parent-token', user: { id: 'parent-1', username: 'parent-one', role: 'parent' },
+    }))
+    setPath('/dashboard')
+    const firstPage = Array.from({ length: 5 }, (_, index) => ({ id: `quest-${index}`, subject: 'Math', difficulty: 'Easy', score: 5, totalQuestions: 5 }))
+    vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(jsonResponse({ children: [{ id: 'child-1', username: 'Ari', role: 'child' }] }))
+      .mockReturnValueOnce(jsonResponse({ metrics: { totalQuests: 6, overallAccuracy: 90, favoriteDifficulty: 'Easy' }, performanceTrend: [], activityVolume: [], difficultyDistribution: [], history: firstPage, hasMore: true, totalHistory: 6 }))
+      .mockReturnValueOnce(jsonResponse({ metrics: { totalQuests: 6, overallAccuracy: 90, favoriteDifficulty: 'Easy' }, performanceTrend: [], activityVolume: [], difficultyDistribution: [], history: [{ id: 'quest-5', subject: 'English', difficulty: 'Hard', score: 3, totalQuestions: 5 }], hasMore: false, totalHistory: 6 }))
+
+    render(<App />)
+    expect(await screen.findAllByText('Math')).toHaveLength(5)
+    fireEvent.click(screen.getByRole('button', { name: /load more/i }))
+    expect(await screen.findByText('English')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /load more/i })).not.toBeInTheDocument()
   })
 
   it('logs a child in and routes directly to quest setup', async () => {
