@@ -89,6 +89,7 @@ function LoginPage() {
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="button button-primary" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Opening portal...' : isRegistering ? 'Create parent account' : isChildLogin ? 'Enter quest' : 'Enter dashboard'}</button>
     </form>
+    {isChildLogin && <p className="child-helper">No account? Ask your parent to create your hero profile in the <button className="text-button" type="button" onClick={() => { setError(''); setIsChildLogin(false); setIsRegistering(false) }}>Parent Portal</button>!</p>}
     <div className="auth-actions-row">
       {!isChildLogin && <button className="text-button" type="button" onClick={() => { setError(''); setIsRegistering(!isRegistering) }}>{isRegistering ? 'Return to sign in' : 'Create parent account'}</button>}
       <button className="text-button" type="button" onClick={() => { setError(''); setIsChildLogin(!isChildLogin); setIsRegistering(false) }}>{isChildLogin ? 'Parent login' : 'Child login'}</button>

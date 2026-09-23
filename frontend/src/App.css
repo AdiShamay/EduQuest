@@ -242,6 +242,8 @@
 .auth-form label { color: #cbd5e1; font-size: .84rem; }
 .auth-form input { width: 100%; border: 1px solid #475569; border-radius: 4px; padding: 12px; color: #f8fafc; background: #0f172a; }
 .auth-form input:focus { outline: 2px solid #68b7a6; outline-offset: 1px; }
+.child-helper { margin: 18px 0 0; color: #94a3b8; font-size: .88rem; line-height: 1.6; }
+.child-helper .text-button { padding: 0; color: #e2b659; vertical-align: baseline; }
 .button { border: 1px solid transparent; border-radius: 4px; padding: 11px 17px; cursor: pointer; font-weight: 700; }
 .button-primary { color: #101827; background: #e2b659; }
 .button-primary:hover { background: #f3ca70; }
