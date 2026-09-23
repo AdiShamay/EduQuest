@@ -190,6 +190,44 @@
   padding: 36px clamp(20px, 5vw, 72px) 64px;
 }
 
+.landing-page {
+  isolation: isolate;
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 48px 24px;
+  background:
+    radial-gradient(circle at 72% 22%, rgba(104, 183, 166, .18), transparent 25%),
+    radial-gradient(circle at 18% 78%, rgba(226, 182, 89, .12), transparent 30%),
+    linear-gradient(125deg, #070b14 0%, #101b29 48%, #1a171d 100%);
+}
+.landing-page::before, .landing-page::after { content: ''; position: absolute; z-index: -1; border: 1px solid rgba(226, 182, 89, .16); transform: rotate(35deg); pointer-events: none; }
+.landing-page::before { width: 52vw; height: 52vw; max-width: 760px; max-height: 760px; right: -18vw; top: -25vw; box-shadow: 0 0 0 32px rgba(226, 182, 89, .025), 0 0 0 64px rgba(226, 182, 89, .02); }
+.landing-page::after { width: 32vw; height: 32vw; max-width: 440px; max-height: 440px; left: -15vw; bottom: -15vw; border-color: rgba(104, 183, 166, .14); }
+.landing-content { width: min(900px, 100%); text-align: center; animation: landing-rise .9s ease-out both; }
+.landing-kicker { margin: 0 0 22px; color: #e2b659; font-size: .76rem; letter-spacing: .24em; text-transform: uppercase; }
+.landing-content h1 { max-width: 850px; margin: 0 auto; color: #f8fafc; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2rem, 4.5vw, 4.5rem); font-weight: 500; line-height: .98; text-shadow: 0 0 32px rgba(226, 182, 89, .2); animation: landing-glow 4.5s ease-in-out infinite; }
+.landing-description { max-width: 610px; margin: 28px auto 0; color: #cbd5e1; font-size: clamp(1rem, 2vw, 1.2rem); }
+.landing-actions { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 36px; }
+.landing-cta { min-width: 190px; padding: 14px 20px; }
+.landing-cta.button-quiet { color: #f8fafc; border-color: rgba(226, 182, 89, .55); background: rgba(15, 23, 42, .52); }
+.landing-trust { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 13px; margin-top: 48px; color: #94a3b8; font-size: .76rem; letter-spacing: .08em; text-transform: uppercase; }
+.landing-trust i { width: 4px; height: 4px; border-radius: 50%; background: #68b7a6; box-shadow: 0 0 12px #68b7a6; }
+.landing-rune { position: absolute; color: rgba(226, 182, 89, .3); font-size: clamp(2rem, 5vw, 4rem); animation: landing-drift 7s ease-in-out infinite; }
+.landing-rune-left { left: 9%; top: 24%; }
+.landing-rune-right { right: 11%; bottom: 22%; animation-delay: -3s; color: rgba(104, 183, 166, .3); }
+.landing-stars { position: absolute; inset: 0; pointer-events: none; }
+.landing-star { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #f8fafc; opacity: .45; box-shadow: 0 0 12px 2px rgba(226, 182, 89, .65); animation: landing-twinkle 3s ease-in-out infinite; }
+.star-1 { left: 12%; top: 16%; } .star-2 { left: 23%; top: 65%; animation-delay: -1s; } .star-3 { left: 35%; top: 11%; animation-delay: -2s; } .star-4 { left: 46%; top: 82%; animation-delay: -.5s; } .star-5 { left: 58%; top: 20%; animation-delay: -1.5s; } .star-6 { left: 69%; top: 71%; animation-delay: -2.5s; } .star-7 { left: 78%; top: 13%; animation-delay: -.8s; } .star-8 { left: 88%; top: 46%; animation-delay: -1.8s; } .star-9 { left: 8%; top: 49%; animation-delay: -2.8s; } .star-10 { left: 29%; top: 37%; animation-delay: -1.2s; } .star-11 { left: 64%; top: 91%; animation-delay: -.3s; } .star-12 { left: 94%; top: 78%; animation-delay: -2.2s; }
+@keyframes landing-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes landing-glow { 0%, 100% { text-shadow: 0 0 24px rgba(226, 182, 89, .16); } 50% { text-shadow: 0 0 42px rgba(226, 182, 89, .38); } }
+@keyframes landing-drift { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-12px) rotate(12deg); } }
+@keyframes landing-twinkle { 0%, 100% { opacity: .2; transform: scale(.7); } 50% { opacity: .85; transform: scale(1.25); } }
+@media (prefers-reduced-motion: reduce) { .landing-content, .landing-content h1, .landing-rune, .landing-star { animation: none; } }
+@media (max-width: 560px) { .landing-page { padding: 32px 18px; } .landing-actions { flex-direction: column; align-items: stretch; } .landing-cta { width: 100%; } .landing-trust { gap: 9px; font-size: .65rem; } }
+
 .auth-layout { display: grid; place-items: center; }
 .auth-panel, .chart-panel, .history-panel, .child-form-panel, .child-strip, .metric {
   border: 1px solid rgba(148, 163, 184, .22);

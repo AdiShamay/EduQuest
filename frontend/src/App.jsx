@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import './App.css'
 
@@ -35,11 +35,37 @@ async function requestJson(path, options = {}, token) {
   return body
 }
 
+function LandingPage() {
+  const navigate = useNavigate()
+  function enterPortal(portal) {
+    navigate('/login', { state: { portal } })
+  }
+
+  return <main className="landing-page">
+    <div className="landing-stars" aria-hidden="true">
+      {Array.from({ length: 12 }, (_, index) => <span className={`landing-star star-${index + 1}`} key={index} />)}
+    </div>
+    <div className="landing-rune landing-rune-left" aria-hidden="true">✦</div>
+    <div className="landing-rune landing-rune-right" aria-hidden="true">◈</div>
+    <section className="landing-content">
+      <p className="landing-kicker">A learning adventure for curious minds</p>
+      <h1>EduQuest: Where Learning Becomes an Epic Adventure.</h1>
+      <p className="landing-description">Turn Math and English practice into a dark fantasy quest, while parents track every brave step along the journey.</p>
+      <div className="landing-actions">
+        <button className="button button-primary landing-cta" type="button" onClick={() => enterPortal('child')}>Enter Quest (Child)</button>
+        <button className="button button-quiet landing-cta" type="button" onClick={() => enterPortal('parent')}>Parent Portal</button>
+      </div>
+      <div className="landing-trust"><span>5 challenges per quest</span><i /> <span>Math + English</span><i /> <span>CONQUER WITH KNOWLEDGE</span></div>
+    </section>
+  </main>
+}
+
 function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { saveSession } = useAuth()
   const [isRegistering, setIsRegistering] = useState(false)
-  const [isChildLogin, setIsChildLogin] = useState(false)
+  const [isChildLogin, setIsChildLogin] = useState(() => location.state?.portal === 'child')
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -265,7 +291,7 @@ function Dashboard() {
 }
 
 function App() {
-  return <BrowserRouter><AuthProvider><Routes><Route path="/login" element={<LoginPage />} /><Route path="/dashboard" element={<ProtectedParentRoute><Dashboard /></ProtectedParentRoute>} /><Route path="/quest-setup" element={<ProtectedChildRoute><QuestSetup /></ProtectedChildRoute>} /><Route path="/quest" element={<ProtectedChildRoute><ActiveQuest /></ProtectedChildRoute>} /><Route path="*" element={<Navigate to="/login" replace />} /></Routes></AuthProvider></BrowserRouter>
+  return <BrowserRouter><AuthProvider><Routes><Route path="/" element={<LandingPage />} /><Route path="/login" element={<LoginPage />} /><Route path="/dashboard" element={<ProtectedParentRoute><Dashboard /></ProtectedParentRoute>} /><Route path="/quest-setup" element={<ProtectedChildRoute><QuestSetup /></ProtectedChildRoute>} /><Route path="/quest" element={<ProtectedChildRoute><ActiveQuest /></ProtectedChildRoute>} /><Route path="*" element={<Navigate to="/login" replace />} /></Routes></AuthProvider></BrowserRouter>
 }
 
 export default App

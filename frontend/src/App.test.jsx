@@ -18,6 +18,35 @@ describe('EduQuest frontend', () => {
     vi.restoreAllMocks()
   })
 
+  it('renders the animated landing page with child and parent entry points', () => {
+    setPath('/')
+    render(<App />)
+
+    expect(screen.getByRole('heading', { name: /where learning becomes an epic adventure/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /enter quest \(child\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /parent portal/i })).toBeInTheDocument()
+  })
+
+  it('opens the login page in child mode from the child landing CTA', () => {
+    setPath('/')
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: /enter quest \(child\)/i }))
+
+    expect(window.location.pathname).toBe('/login')
+    expect(screen.getByRole('heading', { name: /enter the quest/i })).toBeInTheDocument()
+  })
+
+  it('opens the login page in parent mode from the parent landing CTA', () => {
+    setPath('/')
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: /parent portal/i }))
+
+    expect(window.location.pathname).toBe('/login')
+    expect(screen.getByRole('heading', { name: /parent dashboard/i })).toBeInTheDocument()
+  })
+
   it('renders login and registration flows and stores the parent session', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockReturnValue(
       jsonResponse({
@@ -27,7 +56,7 @@ describe('EduQuest frontend', () => {
     )
 
     render(<App />)
-    expect(screen.getByRole('heading', { name: /enter the quest/i })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: /parent dashboard/i })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /create parent account/i }))
     expect(screen.getByRole('heading', { name: /forge your parent account/i })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /return to sign in/i }))

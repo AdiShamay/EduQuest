@@ -3,7 +3,8 @@
 ## 1. Visual Identity & Layout
 - **Theme:** Dark Mode / Fantasy / Gaming vibe. Deep background colors, glowing button accents, and legible typography suitable for gaming UI.
 - **Layout:** The Child Quest view utilizes full-screen dynamic background images with a semi-transparent dark overlay card in the center to ensure text readability.
-- **Routing (React-Router-DOM):** `/login`, `/dashboard` (Parents), `/quest-setup` (Subject/Difficulty selection), `/quest` (Active Game).
+- **Routing (React-Router-DOM):** `/` (Landing Page), `/login` (Auth Portal), `/dashboard` (Parents), `/quest-setup` (Setup), `/quest` (Active Game).
+- **Landing Page (`/`):** A high-impact, animated introduction to EduQuest. Must feature a dark fantasy aesthetic, CSS-based ambient animations (e.g., glowing text, floating particles, or slow-pulsing elements), and a clear value proposition explaining the dual-nature of the app (Math/English adventure for kids + Analytics for parents). Includes two distinct CTA buttons leading to the respective login states.
 - **Routing & Gateways:** The platform features distinct entry gates: a Parent Portal (/login with parent registration/login toggles) designed for observatory monitoring, and dedicated authentication states ensuring clear visual separation between adult management and child quest access.
 
 ## 2. The Parent Dashboard (`/dashboard`)

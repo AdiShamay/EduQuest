@@ -70,3 +70,16 @@
 - Upgraded Gemini integration to use `gemini-3.6-flash` following API availability updates.
 - Refined the Gemini narrative prompt to strictly enforce pure fantasy storylines.
 - Upgraded the English question engine to fetch authentic dictionary definitions concurrently for all four multiple-choice options using `Promise.all`, ensuring high-quality distractors and clean feedback formatting.
+
+## Turn 10: UX Polish & Edge-Case Stabilization
+- Status: complete and verified.
+- UI/UX: Clarified Parent/Child login separation and added a loading spinner for batch quest generation.
+- Engine Fixes: Prevented negative math results, expanded English word banks (60/level), and eliminated duplicate distractors.
+- Stability: Added a silent 40-second retry for Gemini `429` rate limits to keep errors out of the user interface.
+
+## Turn 11: Dedicated Animated Landing Page
+- Status: complete and verified.
+- Added a dedicated animated dark-fantasy landing page at `/` with a responsive value proposition, ambient stars, rune accents, title glow, and reduced-motion support.
+- Landing CTAs navigate to `/login` with React Router state so child entry opens child login mode and parent entry opens the parent gate.
+- Login remains exclusively on `/login`; existing dashboard, quest setup, and active quest routes are unchanged.
+- Verification: frontend Vitest passed 11 tests; frontend production build passed; frontend lint passed with the existing non-blocking React effect warning. Existing Tailwind at-rule and bundle-size warnings remain non-blocking.
