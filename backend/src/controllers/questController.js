@@ -200,7 +200,7 @@ async function answerQuest(req, res) {
     });
   } catch (error) {
     console.error('CRITICAL ERROR IN ANSWER QUEST:', error);
-    return res.status(500).json({ message: 'The magic portal is resting. Try again.', error: error.message });
+    return res.status(500).json({ message: 'The magic portal is gathering energy. Please wait a moment and try again.', error: error.message });
   }
 }
 

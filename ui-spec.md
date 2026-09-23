@@ -4,6 +4,7 @@
 - **Theme:** Dark Mode / Fantasy / Gaming vibe. Deep background colors, glowing button accents, and legible typography suitable for gaming UI.
 - **Layout:** The Child Quest view utilizes full-screen dynamic background images with a semi-transparent dark overlay card in the center to ensure text readability.
 - **Routing (React-Router-DOM):** `/login`, `/dashboard` (Parents), `/quest-setup` (Subject/Difficulty selection), `/quest` (Active Game).
+- **Routing & Gateways:** The platform features distinct entry gates: a Parent Portal (/login with parent registration/login toggles) designed for observatory monitoring, and dedicated authentication states ensuring clear visual separation between adult management and child quest access.
 
 ## 2. The Parent Dashboard (`/dashboard`)
 - **Top Metrics:** KPI cards including "Total Quests", "Overall Accuracy", and "Favorite Difficulty Level".
@@ -24,4 +25,4 @@
 
 ## 4. Feedback & Error Handling (Crucial)
 - **Explicit Correction:** If the child answers incorrectly, the system MUST pause the narrative and display a clear, educational error message (e.g., "Incorrect! 5 x 4 is 20, not 15.") before generating the next "recovery" branch of the story.
-- **API Failures:** If an API times out, display a friendly game-themed message (e.g., "The magic portal is resting, try again!") rather than a raw error code.
+- **API Failures:** If an API times out, display a friendly game-themed message (e.g., "The magic portal is gathering energy. Please wait a moment and try again.") rather than a raw error code.

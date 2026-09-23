@@ -272,3 +272,45 @@
   .choice-grid { grid-template-columns: 1fr; }
   .quest-meta { flex-direction: column; margin-bottom: 28px; }
 }
+
+.auth-actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+  gap: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  padding-top: 10px;
+}
+
+.quest-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.quest-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(226, 182, 89, 0.2);
+  border-top-color: #e2b659;
+  border-radius: 50%;
+  animation: quest-spin 0.8s linear infinite;
+}
+
+@keyframes quest-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-subtitle {
+  color: #e2b659;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  font-style: italic;
+  margin: 0;
+}

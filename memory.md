@@ -64,3 +64,9 @@
 - Added automatic retry logic in the engine to seamlessly handle Google 503 Overloaded states without crashing the server.
 - Fixed a frontend race condition where reaching 5/5 questions overrode the feedback dialog on incorrect answers.
 - **Major Architectural Pivot (Batch Generation):** Quest latency has been reduced to zero. Instead of calling Gemini for every question, `startQuest` now makes a SINGLE call to Gemini requesting a JSON array of 5 narrative parts. All 5 educational questions are generated instantly via local logic, merged with the 5-part narrative, and cached in MongoDB. `answerQuest` is now completely instantaneous and requires zero API calls.
+
+## Turn 9: Final Refinements & Authentic English Distractors
+- Status: complete and verified.
+- Upgraded Gemini integration to use `gemini-3.6-flash` following API availability updates.
+- Refined the Gemini narrative prompt to strictly enforce pure fantasy storylines.
+- Upgraded the English question engine to fetch authentic dictionary definitions concurrently for all four multiple-choice options using `Promise.all`, ensuring high-quality distractors and clean feedback formatting.

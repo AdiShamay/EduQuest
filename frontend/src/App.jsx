@@ -31,7 +31,7 @@ async function requestJson(path, options = {}, token) {
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers || {}) },
   })
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.message || 'The magic portal is resting. Try again.')
+  if (!response.ok) throw new Error(body.message || 'The magic portal is gathering energy. Please wait a moment and try again.')
   return body
 }
 
@@ -54,17 +54,19 @@ function LoginPage() {
     } catch (submitError) { setError(submitError.message) } finally { setIsSubmitting(false) }
   }
   return <main className="portal-shell auth-layout"><section className="auth-panel">
-    <p className="eyebrow">EduQuest / {isChildLogin ? 'Child Gate' : 'Parent Gate'}</p>
-    <h1>{isRegistering ? 'Forge your parent account' : 'Enter the quest'}</h1>
-    <p className="lead">Guide learning journeys, then read the trail they leave behind.</p>
+    <p className="eyebrow">EduQuest / {isChildLogin ? 'Child Portal' : isRegistering ? 'Parent Registration' : 'Parent Gate'}</p>
+    <h1>{isChildLogin ? 'Enter the quest' : isRegistering ? 'Forge your parent account' : 'Parent dashboard'}</h1>
+    <p className="lead">{isChildLogin ? 'Unlock the portal, prove your wisdom, and conquer the shadows ahead.' : 'Guide learning journeys, then read the trail they leave behind.'}</p>
     <form className="auth-form" onSubmit={submit}>
       <label htmlFor="username">Username</label><input id="username" name="username" value={form.username} onChange={updateField} required />
       <label htmlFor="password">Password</label><input id="password" name="password" type="password" value={form.password} onChange={updateField} minLength="8" required />
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="button button-primary" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Opening portal...' : isRegistering ? 'Create parent account' : isChildLogin ? 'Enter quest' : 'Enter dashboard'}</button>
     </form>
-    {!isChildLogin && <button className="text-button" type="button" onClick={() => { setError(''); setIsRegistering(!isRegistering) }}>{isRegistering ? 'Return to sign in' : 'Create parent account'}</button>}
-    {!isRegistering && <button className="text-button" type="button" onClick={() => { setError(''); setIsChildLogin(!isChildLogin) }}>{isChildLogin ? 'Parent login' : 'Child login'}</button>}
+    <div className="auth-actions-row">
+      {!isChildLogin && <button className="text-button" type="button" onClick={() => { setError(''); setIsRegistering(!isRegistering) }}>{isRegistering ? 'Return to sign in' : 'Create parent account'}</button>}
+      <button className="text-button" type="button" onClick={() => { setError(''); setIsChildLogin(!isChildLogin); setIsRegistering(false) }}>{isChildLogin ? 'Parent login' : 'Child login'}</button>
+    </div>
   </section></main>
 }
 
@@ -120,7 +122,14 @@ function QuestSetup() {
       <fieldset><legend>Subject</legend><div className="choice-grid">{['Math', 'English'].map((option) => <button key={option} className={subject === option ? 'choice active' : 'choice'} type="button" onClick={() => setSubject(option)}>{option}</button>)}</div></fieldset>
       <fieldset><legend>Difficulty</legend><div className="choice-grid">{['Easy', 'Medium', 'Hard'].map((option) => <button key={option} className={difficulty === option ? 'choice active' : 'choice'} type="button" onClick={() => setDifficulty(option)}>{option}</button>)}</div></fieldset>
       {error && <p className="form-error" role="alert">{error}</p>}
-      <button className="button button-primary" type="submit" disabled={loading}>{loading ? 'Opening the gate...' : 'Begin quest'}</button>
+      {loading ? (
+        <div className="quest-loading-container">
+          <div className="quest-spinner" />
+          <p className="loading-subtitle">The Game Master is weaving your tale... please wait a moment.</p>
+        </div>
+      ) : (
+        <button className="button button-primary" type="submit">Begin quest</button>
+      )}
     </form>
   </section></main>
 }
@@ -159,11 +168,8 @@ function ActiveQuest() {
       }, session.token)
       setAnswer('')
       
-      // Handle incorrect answers and trigger the feedback dialog
       if (!response.isCorrect) {
         setFeedback(response.feedback)
-        
-        // Cache the completion status if this was the final question
         if (response.completed) {
           setQuestState((current) => ({ ...current, pendingCompletion: true }))
         } else {
@@ -172,13 +178,11 @@ function ActiveQuest() {
         return
       }
 
-      // Handle correct answers on the final question
       if (response.completed) {
         setCompleted(true)
         return
       }
 
-      // Proceed to the next question
       setQuestState((current) => ({ ...current, question: response.nextQuestion, progress: response.progress }))
     } catch (submitError) {
       setError(submitError.message)
@@ -192,19 +196,16 @@ function ActiveQuest() {
   }
 
   function continueAfterFeedback() {
-    // Navigate to completion screen if the feedback was for the final question
     if (questState.pendingCompletion) {
       setCompleted(true)
       setFeedback(null)
       return
     }
-    
-    // Otherwise, load the next question in the sequence
     setQuestState((current) => ({ ...current, question: current.pendingNextQuestion, progress: current.pendingProgress, pendingNextQuestion: undefined, pendingProgress: undefined }))
     setFeedback(null)
   }
 
-  if (completed) return <main className="quest-scene complete-scene" style={{ backgroundImage: `url(${imageUrl})` }}><section className="story-card"><p className="eyebrow">Victory</p><h1>Quest complete</h1><p>You answered all five challenges. The realm remembers your courage.</p><button className="button button-primary" type="button" onClick={() => navigate('/quest-setup')}>Begin another quest</button></section></main>
+  if (completed) return <main className="quest-scene complete-scene" style={{ backgroundImage: `url(${imageUrl})` }}><section className="story-card"><p className="eyebrow">Victory</p><h1>Quest complete</h1><p style={{ marginBottom: '30px' }}>You answered all five challenges. The realm remembers your courage.</p><button className="button button-primary" type="button" onClick={() => navigate('/quest-setup')}>Begin another quest</button></section></main>
 
   return <main className="quest-scene" style={{ backgroundImage: `url(${imageUrl})` }}><div className="quest-shade" /><section className="story-card">
     <div className="quest-meta"><span>{questState.quest.subject} / {questState.quest.difficulty}</span><strong>Question {questState.progress.current} of {questState.progress.total}</strong></div>
@@ -212,7 +213,7 @@ function ActiveQuest() {
     {questState.question.type === 'english' ? <div className="answer-options" aria-label="Answer choices">{questState.question.options.map((option) => <button key={option} className={answer === option ? 'answer-option selected' : 'answer-option'} type="button" onClick={() => chooseEnglishAnswer(option)} disabled={loading}>{option}</button>)}<button className="button button-primary" type="button" onClick={submitAnswer} disabled={loading || !answer}>{loading ? 'Consulting the oracle...' : 'Submit answer'}</button></div> : <form className="answer-form" onSubmit={submitAnswer}><label htmlFor="quest-answer">Your answer</label><input id="quest-answer" value={answer} onChange={(event) => setAnswer(event.target.value)} autoComplete="off" disabled={loading} /><button className="button button-primary" type="submit" disabled={loading}>{loading ? 'Consulting the oracle...' : 'Submit answer'}</button></form>}
     {error && <p className="form-error" role="alert">{error}</p>}
   </section>
-  {feedback && <div className="feedback-backdrop"><section className="feedback-dialog" role="dialog" aria-modal="true"><p className="eyebrow">A setback, not a defeat</p><h2>Correct answer: {feedback.correctAnswer}</h2><p>{feedback.explanation}</p><button className="button button-primary" type="button" onClick={continueAfterFeedback}>Continue</button></section></div>}
+  {feedback && <div className="feedback-backdrop"><section className="feedback-dialog" role="dialog" aria-modal="true"><p className="eyebrow">A setback, not a defeat</p><h2>Correct answer: {feedback.correctAnswer}</h2>{questState.quest.subject === 'Math' && <p>{feedback.explanation}</p>}<button className="button button-primary" type="button" onClick={continueAfterFeedback}>Continue</button></section></div>}
   </main>
 }
 

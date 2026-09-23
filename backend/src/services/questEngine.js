@@ -1,18 +1,48 @@
 const TOTAL_QUESTIONS = 5;
+
 const WORD_BANKS = {
-  Easy: ['brave', 'happy', 'small', 'quick', 'bright', 'kind'],
-  Medium: ['ancient', 'curious', 'fragile', 'generous', 'mysterious', 'reluctant'],
-  Hard: ['benevolent', 'circumvent', 'enigmatic', 'meticulous', 'resilient', 'vindicate'],
+  Easy: [
+    'brave', 'happy', 'small', 'quick', 'bright', 'kind', 'cold', 'warm', 'fast', 'slow',
+    'big', 'tall', 'short', 'loud', 'quiet', 'clean', 'dirty', 'dark', 'light', 'strong',
+    'weak', 'young', 'old', 'good', 'bad', 'new', 'easy', 'hard', 'rich', 'poor',
+    'sweet', 'sour', 'soft', 'hot', 'cool', 'wet', 'dry', 'full', 'empty',
+    'safe', 'wild', 'tame', 'calm', 'glad', 'sad', 'mad', 'sick', 'well',
+    'neat', 'fair', 'nice', 'rude', 'wise', 'silly', 'funny', 'smart',
+    'deep', 'high', 'flat', 'round'
+  ],
+  Medium: [
+    'ancient', 'curious', 'fragile', 'generous', 'mysterious', 'reluctant', 'brilliant', 'cautious', 'furious', 'glorious',
+    'honest', 'lonely', 'magical', 'nervous', 'patient', 'polite', 'proud', 'scary', 'secret', 'silent',
+    'simple', 'sincere', 'special', 'strange', 'sudden', 'tender', 'terrible', 'useful', 'valuable', 'violent',
+    'wandering', 'weary', 'wicked', 'wooden', 'worried', 'worthy', 'abundant', 'active', 'adequate', 'admirable',
+    'agreeable', 'alert', 'ambitious', 'amiable', 'amusing', 'anxious', 'apparent', 'apt', 'ardent', 'artistic',
+    'astonishing', 'attentive', 'attractive', 'graceful', 'auspicious', 'authentic', 'available', 'avenging', 'aware', 'awesome'
+  ],
+  Hard: [
+    'benevolent', 'circumvent', 'enigmatic', 'meticulous', 'resilient', 'vindicate', 'audacious', 'cacophony', 'deleterious', 'ephemeral',
+    'fastidious', 'gargantuan', 'haughty', 'iconoclast', 'juxtapose', 'kinetic', 'labyrinth', 'mellifluous', 'nefarious', 'oblivious',
+    'paradox', 'quarantine', 'rancorous', 'sagacious', 'taciturn', 'ubiquitous', 'vacillate', 'waning', 'xenophile', 'yearning',
+    'zealot', 'altruistic', 'belligerent', 'capricious', 'destitute', 'ebullient', 'fallacious', 'gregarious', 'hedonistic', 'immutable',
+    'jeopardy', 'kleptomaniac', 'luminous', 'munificent', 'nostalgic', 'omnipotent', 'pragmatic', 'quell', 'recalcitrant', 'sanguine',
+    'tenacious', 'uxorious', 'venerable', 'winsome', 'xenophobic', 'yoke', 'zenith', 'acumen', 'bumptious', 'candor'
+  ]
 };
 
 function calculateMathQuestion(operator, left, right) {
-  const answer = operator === '+' ? left + right : operator === '-' ? left - right : operator === 'x' ? left * right : left / right;
+  // Ensure subtraction never results in a negative number by swapping operands if needed
+  let l = left;
+  let r = right;
+  if (operator === '-' && l < r) {
+    l = right;
+    r = left;
+  }
+
+  const answer = operator === '+' ? l + r : operator === '-' ? l - r : operator === 'x' ? l * r : l / r;
   return {
     type: 'math',
-    prompt: `Solve: ${left} ${operator}${right}`,
+    prompt: `Solve: ${l} ${operator} ${r}`,
     correctAnswer: String(answer),
-    // Removed the trailing period to prevent double punctuation
-    explanation: `${left}${operator} ${right} equals${answer}`,
+    explanation: `${l} ${operator} ${r} equals ${answer}`,
     options: [],
   };
 }
@@ -72,14 +102,17 @@ async function generateEnglishQuestion(difficulty) {
   
   const correctAnswer = definitions[0];
   
+  // Ensure all displayed options are strictly unique (prevents identical dictionary definitions)
+  const uniqueOptions = Array.from(new Set(definitions));
+  
   return {
     type: 'english',
     word: targetWord,
     prompt: `What is the definition of the word: ${targetWord}?`,
     correctAnswer,
     // Formatted cleanly without trailing periods to prevent double punctuation
-    explanation: `The word '${targetWord}' is defined as:${correctAnswer}`,
-    options: definitions.sort(() => Math.random() - 0.5),
+    explanation: `The word '${targetWord}' is defined as: ${correctAnswer}`,
+    options: uniqueOptions.sort(() => Math.random() - 0.5),
   };
 }
 
@@ -96,12 +129,12 @@ async function generateStoryBatch(subject, difficulty, retries = 6) {
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
   
-  const promptText = `You are a game master. Create a continuous 5-part dark fantasy adventure story about a hero embarking on a quest.
+  const promptText = `You are a game master. Create a continuous 5-part fantasy adventure story about a hero or heroes embarking on a quest.
   IMPORTANT RULES:
   - Return ONLY a JSON array containing exactly 5 objects.
   - Each object must have exactly two keys: "story" and "imageKeyword".
   - "story": A short continuous narrative segment (max 30 words). Part 1: Intro, Parts 2-4: The journey/obstacles, Part 5: The climax/conclusion.
-  - "imageKeyword": A single word to search for a background image (e.g., "castle", "forest", "dragon", "dungeon").
+  - "imageKeyword": A single word from the story to search for a background image (e.g., "castle", "forest", "dragon", "dungeon").
   - STRICT RULE: DO NOT include numbers, math equations, specific puzzles, or vocabulary definitions in the story text. The story must only describe the atmospheric adventure, environments, and heroic actions.
   - Do NOT include any markdown wrappers like \`\`\`json. Return pure JSON.`;
 
@@ -116,15 +149,24 @@ async function generateStoryBatch(subject, difficulty, retries = 6) {
     });
 
     if (!response.ok) {
-      if (response.status === 503) {
+      const errorText = await response.text();
+      
+      // Handle rate limits and overloaded servers
+      if (response.status === 429 || response.status === 503) {
+        console.warn(`[Gemini API] Status ${response.status} encountered. Retrying...`, errorText);
+        
         if (i < retries - 1) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Determine delay based on status code
+          const delay = response.status === 429 ? 40000 : 2000;
+          await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
-        throw new Error("Unable to start quest. The servers are currently overloaded, please try again.");
+        
+        throw new Error("The magic portal is gathering energy. Please wait a moment and try again.");
       }
-      const errorText = await response.text();
-      throw new Error(`Google API Rejected: ${response.status} - ${errorText}`);
+      
+      console.error(`[Gemini API] Fatal Error ${response.status}:`, errorText);
+      throw new Error("The realm's connection was disrupted. Please try again.");
     }
 
     const data = await response.json();
